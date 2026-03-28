@@ -1,0 +1,25 @@
+import colors from 'tailwindcss/colors'
+
+export const colorsPrimary = {
+  slate: {light: colors.slate['500'], dark: colors.slate['100']},
+  gray: {light: colors.gray['600'], dark: colors.gray['300']},
+  zinc: {light: colors.zinc['700'], dark: colors.zinc['400']},
+  stone: {light: colors.stone['600'], dark: colors.stone['500']},
+  red: {light: colors.red['700'], dark: colors.red['300']},
+  orange: {light: colors.orange['700'], dark: colors.orange['300']},
+  amber: {light: colors.amber['700'], dark: colors.amber['300']},
+  yellow: {light: colors.yellow['800'], dark: colors.yellow['400']},
+  lime: {light: colors.lime['600'], dark: colors.lime['300']},
+  green: {light: colors.green['700'], dark: colors.green['300']},
+  emerald: {light: colors.emerald['800'], dark: colors.emerald['400']},
+  teal: {light: colors.teal['600'], dark: colors.teal['300']},
+  cyan: {light: colors.cyan['700'], dark: colors.cyan['400']},
+  sky: {light: colors.sky['800'], dark: colors.sky['500']},
+  blue: {light: colors.blue['600'], dark: colors.blue['300']},
+  indigo: {light: colors.indigo['700'], dark: colors.indigo['300']},
+  violet: {light: colors.violet['800'], dark: colors.violet['400']},
+  purple: {light: colors.purple['600'], dark: colors.purple['300']},
+  fuchsia: {light: colors.fuchsia['700'], dark: colors.fuchsia['400']},
+  pink: {light: colors.pink['700'], dark: colors.pink['300']},
+  rose: {light: colors.rose['800'], dark: colors.rose['400']},
+}

@@ -1,0 +1,1 @@
+export {sumBy} from './sumBy'

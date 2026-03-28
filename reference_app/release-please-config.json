@@ -1,0 +1,17 @@
+{
+  "release-type": "expo",
+  "bump-minor-pre-major": true,
+  "include-v-in-tag": true,
+  "separate-pull-requests": true,
+  "release-search-depth": 20,
+  "commit-search-depth": 40,
+  "changelog-path": "CHANGELOG.md",
+  "extra-files": [
+    "package.json"
+  ],
+  "packages": {
+    ".": {
+      "release-type": "expo"
+    }
+  }
+}

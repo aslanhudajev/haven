@@ -39,6 +39,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "b616f56b-e705-489a-915f-bd0b9271eece"
+      }
+    },
+    "owner": "aslanhud-org"
   }
 }

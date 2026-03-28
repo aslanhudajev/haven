@@ -1,0 +1,101 @@
+name: 'EAS Build (Local on GitHub) & Submit'
+
+on:
+  workflow_dispatch:
+    inputs:
+      auto_submit:
+        description: 'Auto submit the build'
+        default: false
+        type: boolean
+      platform:
+        type: choice
+        description: 'Platform to build for'
+        options: [ios, android]
+      profile:
+        type: choice
+        description: 'Build profile to use'
+        options: [production, development, preview]
+      use_self_hosted:
+        type: boolean
+        description: 'Use self-hosted runner'
+        default: false
+
+run-name: 'EAS build for ${{ github.event.inputs.platform }} (${{ github.event.inputs.profile }})'
+
+jobs:
+  eas-build:
+    name: 'EAS build for ${{ github.event.inputs.platform }} (${{ github.event.inputs.profile }})'
+    runs-on: ${{ github.event.inputs.use_self_hosted == 'true' && 'self-hosted' || (github.event.inputs.platform == 'ios' && 'macos-15' || 'ubuntu-latest') }}
+    environment:
+      name: ${{ github.event.inputs.profile }}
+    steps:
+      - name: '🏗 Setup repo'
+        uses: actions/checkout@v4
+
+      - name: 'Select Xcode 16.4'
+        if: ${{ github.event.inputs.platform == 'ios' && github.event.inputs.use_self_hosted != 'true' }}
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app
+
+      - name: '🏗 Setup Node'
+        uses: ./.github/actions/setup-node-environment
+        with:
+          node-version: '20'
+          cache-path: 'node_modules'
+          cache-key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+
+      - name: '📦 Install dependencies'
+        run: npm i
+
+      - name: '🏗 Setup EAS'
+        uses: ./.github/actions/setup-expo
+        with:
+          expo-token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: '📱 Prebuild native code'
+        run: npm run prebuild
+
+      - name: '🔑 Restore Expo credentials'
+        if: ${{ github.event.inputs.platform == 'ios' }}
+        run: |
+          echo "$EXPO_CREDENTIALS_B64" | base64 -D > ios-creds.tar.gz
+          tar xzvf ios-creds.tar.gz
+        env:
+          EXPO_CREDENTIALS_B64: ${{ secrets.EXPO_CREDENTIALS_B64 }}
+
+      - name: '👷 Build app'
+        env:
+          APP_ENV: ${{ github.event.inputs.profile }}
+          EXPO_PUBLIC_SUPABASE_PROJECT_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_PROJECT_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ secrets.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID }}
+          EXPO_PUBLIC_GOOGLE_WEB_CLIENT_SECRET: ${{ secrets.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_SECRET }}
+          EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID: ${{ secrets.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID }}
+          EXPO_PUBLIC_REVENUECAT_PROJECT_IOS_API_KEY: ${{ secrets.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS }}
+          EXPO_PUBLIC_SENTRY_DSN: ${{ secrets.EXPO_PUBLIC_SENTRY_DSN }}
+          EXPO_PUBLIC_ONESIGNAL_APP_ID: ${{ secrets.EXPO_PUBLIC_ONESIGNAL_APP_ID }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          OUTPUT_FILE="./app.${{ github.event.inputs.platform == 'ios' && 'ipa' || 'aab' }}"
+          
+          eas build \
+            --local \
+            --non-interactive \
+            --output=$OUTPUT_FILE \
+            --platform=${{ github.event.inputs.platform }} \
+            --profile=${{ github.event.inputs.profile }} \
+            --clear-cache
+
+      - name: '📱 Upload binary'
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-binary
+          path: ./app.${{ github.event.inputs.platform == 'ios' && 'ipa' || 'aab' }}
+
+      - name: '🚀 Submit app to TestFlight / Google Play'
+        if: ${{ github.event.inputs.auto_submit == 'true'}}
+        run: |
+          eas submit \
+            --non-interactive \
+            --platform=${{ github.event.inputs.platform }}  \
+            --profile=${{ github.event.inputs.profile }} \
+            --path ./app.${{ github.event.inputs.platform == 'ios' && 'ipa' || 'aab' }}

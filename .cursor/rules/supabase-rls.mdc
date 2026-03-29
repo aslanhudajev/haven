@@ -1,0 +1,111 @@
+---
+description: When creating supabase migration that have to do with RLS or security as a whole
+alwaysApply: false
+---
+---
+description: Rules for writing Supabase RLS policies on migration files
+globs: supabase/migrations/**/*.sql
+alwaysApply: false
+---
+
+# Supabase RLS Policy System
+
+## Core Principles
+
+1. **NEVER use `TO public`** — always specify `TO anon, authenticated` or `TO authenticated` explicitly. `TO public` allows NULL `auth.uid()` comparisons to silently pass ownership checks.
+2. **ALWAYS `ENABLE` and `FORCE` RLS** on every public table. `FORCE` ensures RLS applies even to table owners (e.g. `postgres` role).
+3. **Use role-checking helper functions** — `public.auth_is_admin()` and `public.auth_is_dealer()` for role gates. Never inline `auth.jwt()->>'user_role'` checks in policies.
+4. **Combine role check + ownership** — dealer policies must ALWAYS pair the role gate with an ownership column: `public.auth_is_dealer() AND dealer_id = auth.uid()`. Never use one without the other.
+5. **Avoid subqueries/joins in USING clauses** unless absolutely necessary (e.g. `offers` needs to check parent `deals.status`). Prefer denormalized columns checked directly.
+
+## Policy Naming Convention
+
+```
+{table}_{audience}_{action}
+```
+
+Examples:
+- `deals_public_read` — anon + authenticated can SELECT active deals
+- `deals_dealer_manage` — dealers can ALL on own rows
+- `deals_admin_all` — admins can ALL
+- `enquiries_public_insert` — anyone can INSERT
+- `enquiries_customer_read` — authenticated owner can SELECT
+
+## Standard Policy Templates
+
+### Public read (status-gated)
+```sql
+CREATE POLICY {table}_public_read ON public.{table}
+  FOR SELECT
+  TO anon, authenticated
+  USING (status = 'active'::{enum_type});
+```
+
+### Public read (ungated, for cache/reference tables)
+```sql
+CREATE POLICY {table}_read ON public.{table}
+  FOR SELECT
+  TO anon, authenticated
+  USING (true);
+```
+
+### Anonymous insert (forms, analytics)
+```sql
+CREATE POLICY {table}_public_insert ON public.{table}
+  FOR INSERT
+  TO anon, authenticated
+  WITH CHECK (true);
+```
+
+### Owner CRUD (user_id column)
+```sql
+CREATE POLICY {table}_own ON public.{table}
+  FOR ALL
+  TO authenticated
+  USING  (user_id = auth.uid())
+  WITH CHECK (user_id = auth.uid());
+```
+
+### Owner CRUD (id = auth.uid(), e.g. profiles, customer_information)
+```sql
+CREATE POLICY {table}_own ON public.{table}
+  FOR ALL
+  TO authenticated
+  USING  (id = auth.uid())
+  WITH CHECK (id = auth.uid());
+```
+
+### Dealer manage own rows
+```sql
+CREATE POLICY {table}_dealer_manage ON public.{table}
+  FOR ALL
+  TO authenticated
+  USING  (public.auth_is_dealer() AND dealer_id = auth.uid())
+  WITH CHECK (public.auth_is_dealer() AND dealer_id = auth.uid());
+```
+
+### Admin full access
+```sql
+CREATE POLICY {table}_admin_all ON public.{table}
+  FOR ALL
+  TO authenticated
+  USING  (public.auth_is_admin())
+  WITH CHECK (public.auth_is_admin());
+```
+
+## Table Setup Checklist
+
+For every new public table:
+
+1. `ALTER TABLE public.{table} ENABLE ROW LEVEL SECURITY;`
+2. `ALTER TABLE public.{table} FORCE ROW LEVEL SECURITY;`
+3. Add the minimum policies needed (usually 2-3 per table)
+4. If dealers need access, ensure a `dealer_id uuid` column exists directly on the table — do NOT rely on joins to resolve ownership
+
+## Anti-Patterns
+
+- `TO public` on any policy — use explicit roles
+- `USING (auth.uid() = dealer_id)` without `auth_is_dealer()` — a customer with the same UUID could match
+- Subquery in USING that joins 2+ tables — denormalize instead
+- Separate SELECT/INSERT/UPDATE/DELETE policies when a single `FOR ALL` covers the same condition
+- Missing `WITH CHECK` on `FOR ALL` policies — always include both `USING` and `WITH CHECK`

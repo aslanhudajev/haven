@@ -1,5 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { getIsOnboarded, setIsOnboarded as persistOnboarded } from '@/lib/storage';
+import {
+  getIsOnboarded,
+  setIsOnboarded as persistOnboarded,
+  getSubOverride,
+  setSubOverride,
+} from '@/lib/storage';
 import { initRevenueCat, useSubscriptionStatus } from '@/lib/purchases';
 
 type AppContextType = {
@@ -27,6 +32,7 @@ export function useApp() {
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isOnboarded, setIsOnboarded] = useState(false);
   const [onboardingLoaded, setOnboardingLoaded] = useState(false);
+  const [subOverrideActive, setSubOverrideActive] = useState(false);
   const { isSubscribed: subStatus, refresh } = useSubscriptionStatus();
 
   useEffect(() => {
@@ -34,10 +40,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    getIsOnboarded().then((val) => {
-      setIsOnboarded(val);
-      setOnboardingLoaded(true);
-    });
+    Promise.all([getIsOnboarded(), getSubOverride()]).then(
+      ([onboarded, override]) => {
+        setIsOnboarded(onboarded);
+        setSubOverrideActive(override);
+        setOnboardingLoaded(true);
+      },
+    );
   }, []);
 
   const isLoading = !onboardingLoaded || subStatus === null;
@@ -48,8 +57,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   const resetOnboarding = async () => {
-    await persistOnboarded(false);
+    await Promise.all([persistOnboarded(false), setSubOverride(true)]);
     setIsOnboarded(false);
+    setSubOverrideActive(true);
+  };
+
+  const refreshSubscription = async () => {
+    await refresh();
+    if (subOverrideActive) {
+      await setSubOverride(false);
+      setSubOverrideActive(false);
+    }
   };
 
   return (
@@ -57,10 +75,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       value={{
         isLoading,
         isOnboarded,
-        isSubscribed: subStatus ?? false,
+        isSubscribed: (subStatus ?? false) && !subOverrideActive,
         completeOnboarding,
         resetOnboarding,
-        refreshSubscription: refresh,
+        refreshSubscription,
       }}
     >
       {children}

@@ -127,20 +127,18 @@ export default function PaywallScreen() {
           )}
         </Pressable>
 
-        {__DEV__ && (
-          <Pressable
-            style={({ pressed }) => [
-              styles.restartButton,
-              pressed && styles.buttonPressed,
-              { borderColor: theme.textSecondary + '40' },
-            ]}
-            onPress={resetOnboarding}
-          >
-            <Text style={[styles.restartText, { color: theme.textSecondary }]}>
-              Restart Onboarding
-            </Text>
-          </Pressable>
-        )}
+        <Pressable
+          style={({ pressed }) => [
+            styles.restartButton,
+            pressed && styles.buttonPressed,
+            { borderColor: theme.textSecondary + '40' },
+          ]}
+          onPress={resetOnboarding}
+        >
+          <Text style={[styles.restartText, { color: theme.textSecondary }]}>
+            Restart Onboarding
+          </Text>
+        </Pressable>
       </View>
     </View>
   );

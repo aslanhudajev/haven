@@ -6,6 +6,7 @@ import {
   REVENUECAT_ENABLED,
   checkSubscription,
   configureRevenueCat,
+  getSubscriptionTier,
   loginRevenueCat,
   syncRevenueCatSubscription,
 } from '@entities/subscription';
@@ -100,6 +101,19 @@ export function useAppGate(user: SupabaseUser | null): AppGateData {
       if (REVENUECAT_ENABLED && memberRow?.role === 'owner') {
         await syncRevenueCatSubscription();
         nextFamily = await getFamily(userId);
+        if (nextFamily && !nextFamily.is_active) {
+          const rcActive = await checkSubscription();
+          if (rcActive) {
+            const tier = await getSubscriptionTier();
+            const { error: patchErr } = await supabase
+              .from('families')
+              .update({ is_active: true, max_members: tier.maxMembers })
+              .eq('id', nextFamily.id);
+            if (!patchErr) {
+              nextFamily = await getFamily(userId);
+            }
+          }
+        }
       }
     }
 

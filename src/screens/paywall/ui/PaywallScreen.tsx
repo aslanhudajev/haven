@@ -50,23 +50,48 @@ export default function PaywallScreen() {
   };
 
   const syncAfterPurchase = async () => {
-    if (!user) return;
     try {
       if (REVENUECAT_ENABLED) {
+        const Purchases = (await import('react-native-purchases')).default;
+        try {
+          await Purchases.syncPurchasesForResult();
+        } catch {
+          // still try downstream checks
+        }
+      }
+
+      if (!user) return;
+
+      if (REVENUECAT_ENABLED) {
         await syncRevenueCatSubscription();
-        if (family && (await checkSubscription())) {
+        const active = await checkSubscription();
+        if (active) {
+          const { data: owned } = await supabase
+            .from('families')
+            .select('id')
+            .eq('owner_id', user.id)
+            .maybeSingle();
+          if (owned) {
+            const tier = await getSubscriptionTier();
+            await supabase
+              .from('families')
+              .update({ is_active: true, max_members: tier.maxMembers })
+              .eq('id', owned.id);
+          }
+        }
+      } else {
+        const { data: owned } = await supabase
+          .from('families')
+          .select('id')
+          .eq('owner_id', user.id)
+          .maybeSingle();
+        if (owned) {
           const tier = await getSubscriptionTier();
           await supabase
             .from('families')
             .update({ is_active: true, max_members: tier.maxMembers })
-            .eq('id', family.id);
+            .eq('id', owned.id);
         }
-      } else if (family) {
-        const tier = await getSubscriptionTier();
-        await supabase
-          .from('families')
-          .update({ is_active: true, max_members: tier.maxMembers })
-          .eq('id', family.id);
       }
     } catch (err) {
       console.warn('Post-purchase sync failed:', err);

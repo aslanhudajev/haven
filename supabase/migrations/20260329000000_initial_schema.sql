@@ -8,6 +8,8 @@
 --  the referenced tables must already exist.)
 -- ============================================================
 
+-- pgcrypto lives in `extensions` on Supabase; qualify gen_random_bytes for DEFAULT resolution.
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 
 -- ==================== 1. TABLES ====================
 
@@ -39,7 +41,7 @@ CREATE TABLE public.family_members (
 CREATE TABLE public.family_invites (
   id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   family_id  uuid NOT NULL REFERENCES public.families ON DELETE CASCADE,
-  code       text NOT NULL UNIQUE DEFAULT encode(gen_random_bytes(16), 'hex'),
+  code       text NOT NULL UNIQUE DEFAULT encode(extensions.gen_random_bytes(16), 'hex'),
   created_by uuid NOT NULL REFERENCES auth.users,
   expires_at timestamptz NOT NULL DEFAULT (now() + interval '7 days'),
   used_by    uuid REFERENCES auth.users,

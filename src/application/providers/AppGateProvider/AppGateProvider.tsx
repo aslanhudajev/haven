@@ -43,12 +43,13 @@ function currentPathFromSegments(segments: string[]): string {
 
 function AppGateRedirect() {
   const { targetRoute, isLoading, pendingInvite } = useAppGateContext();
-  const segments = useSegments();
+  /** Spread widens expo-router's tuple-typed segments so index `[1]` is valid under all TS versions. */
+  const segments: string[] = [...useSegments()];
   const ready = !!useRootNavigationState()?.key;
 
   if (!ready || isLoading) return null;
 
-  const currentGroup = (segments[0] as string | undefined) ?? '';
+  const currentGroup = segments[0] ?? '';
 
   if (targetRoute === 'invite-pending') {
     if (pendingInvite) {

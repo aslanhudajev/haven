@@ -50,19 +50,22 @@ function AppGateRedirect() {
 
   const currentGroup = (segments[0] as string | undefined) ?? '';
 
-  if (targetRoute === 'invite-pending' && pendingInvite) {
-    if (currentGroup === 'invite' && segments[1] === pendingInvite) {
-      return null;
+  if (targetRoute === 'invite-pending') {
+    if (pendingInvite) {
+      if (currentGroup === 'invite' && segments[1] === pendingInvite) {
+        return null;
+      }
+      return <Redirect href={`/invite/${pendingInvite}`} />;
     }
-    return <Redirect href={`/invite/${pendingInvite}`} />;
+    return null;
   }
 
-  const targetGroup = ROUTE_TO_GROUP[targetRoute as AppGateTarget] ?? '';
+  const targetGroup = ROUTE_TO_GROUP[targetRoute] ?? '';
   const currentPath = currentPathFromSegments(segments);
 
   if (currentGroup === 'invite') {
     if (targetGroup === 'invite') return null;
-    return <Redirect href={targetRoute as Exclude<AppGateTarget, 'invite-pending'>} />;
+    return <Redirect href={targetRoute} />;
   }
 
   if (currentGroup === targetGroup) {

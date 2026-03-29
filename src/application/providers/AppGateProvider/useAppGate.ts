@@ -41,10 +41,7 @@ export type AppGateData = {
 };
 
 async function readLocalFlags(): Promise<{ welcomed: boolean; inviteCode: string | null }> {
-  const [welcomedVal, inviteVal] = await Promise.all([
-    loadWelcomedFlag(),
-    loadPendingInviteCode(),
-  ]);
+  const [welcomedVal, inviteVal] = await Promise.all([loadWelcomedFlag(), loadPendingInviteCode()]);
   return { welcomed: welcomedVal === 'true', inviteCode: inviteVal };
 }
 
@@ -54,7 +51,10 @@ async function readHasSubscription(): Promise<boolean> {
   return checkSubscription();
 }
 
-async function resolveUserData(userId: string, inviteCode: string | null): Promise<{
+async function resolveUserData(
+  userId: string,
+  inviteCode: string | null,
+): Promise<{
   profile: Profile | null;
   family: Family | null;
   membership: FamilyMember | null;

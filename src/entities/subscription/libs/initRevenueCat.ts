@@ -12,6 +12,10 @@ const TIER_MAX_MEMBERS: Record<string, number> = {
   fiftyfifty_small_yearly: 2,
   fiftyfifty_medium_monthly: 5,
   fiftyfifty_medium_yearly: 5,
+  duo_monthly: 2,
+  duo_yearly: 2,
+  family_monthly: 5,
+  family_yearly: 5,
 };
 const DEFAULT_MAX_MEMBERS = 2;
 

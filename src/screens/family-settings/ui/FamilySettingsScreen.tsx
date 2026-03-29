@@ -15,6 +15,8 @@ import {
   getMembers,
   createInvite,
   updateFamily,
+  removeFamilyMember,
+  transferFamilyOwnership,
   type FamilyMember,
   type Family,
 } from '@entities/family';
@@ -71,6 +73,8 @@ export default function FamilySettingsScreen() {
           family={gateFamily}
           user={user}
           theme={theme}
+          refresh={refresh}
+          setMembers={setMembers}
         />
 
         {isOwner ? (
@@ -94,15 +98,71 @@ function MembersSection({
   family,
   user,
   theme,
+  refresh,
+  setMembers,
 }: {
   members: FamilyMember[];
   isOwner: boolean;
   family: Family;
   user: { id: string } | null;
   theme: (typeof Colors)['light'];
+  refresh: () => void;
+  setMembers: (m: FamilyMember[]) => void;
 }) {
   const [inviting, setInviting] = useState(false);
   const atCapacity = members.length >= family.max_members;
+
+  const reloadMembers = async () => {
+    const list = await getMembers(family.id);
+    setMembers(list);
+  };
+
+  const handleRemoveMember = (m: FamilyMember) => {
+    const name = m.profile?.full_name || 'This member';
+    Alert.alert(
+      'Remove member?',
+      `${name} will lose access to this family.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await removeFamilyMember(m.id);
+              await reloadMembers();
+              refresh();
+            } catch (err: any) {
+              Alert.alert('Error', err.message ?? 'Could not remove member');
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleTransferTo = (m: FamilyMember) => {
+    const name = m.profile?.full_name || 'This member';
+    Alert.alert(
+      'Transfer ownership?',
+      `${name} will become the owner. You will stay in the family as a member.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Transfer',
+          onPress: async () => {
+            try {
+              await transferFamilyOwnership(m.user_id);
+              await reloadMembers();
+              refresh();
+            } catch (err: any) {
+              Alert.alert('Error', err.message ?? 'Could not transfer ownership');
+            }
+          },
+        },
+      ],
+    );
+  };
 
   const handleInvite = async () => {
     if (!user) return;
@@ -128,24 +188,49 @@ function MembersSection({
           {members.length} / {family.max_members}
         </Text>
       </View>
-      {members.map((m) => (
-        <View key={m.id} style={styles.memberRow}>
-          <Text style={[styles.memberName, { color: theme.text }]}>
-            {m.profile?.full_name || 'Anonymous'}
-          </Text>
-          <View style={[
-            styles.roleBadge,
-            { backgroundColor: m.role === 'owner' ? theme.accent + '18' : theme.backgroundElement },
-          ]}>
-            <Text style={[
-              styles.roleText,
-              { color: m.role === 'owner' ? theme.accent : theme.textSecondary },
-            ]}>
-              {m.role}
-            </Text>
+      {members.map((m) => {
+        const canManage =
+          isOwner && user && m.user_id !== user.id && m.role === 'member';
+        return (
+          <View key={m.id} style={styles.memberRow}>
+            <View style={styles.memberInfo}>
+              <Text style={[styles.memberName, { color: theme.text }]}>
+                {m.profile?.full_name || 'Anonymous'}
+              </Text>
+              <View
+                style={[
+                  styles.roleBadge,
+                  {
+                    backgroundColor:
+                      m.role === 'owner' ? theme.accent + '18' : theme.backgroundElement,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.roleText,
+                    { color: m.role === 'owner' ? theme.accent : theme.textSecondary },
+                  ]}
+                >
+                  {m.role}
+                </Text>
+              </View>
+            </View>
+            {canManage && (
+              <View style={styles.memberActions}>
+                <Pressable onPress={() => handleTransferTo(m)} hitSlop={8}>
+                  <Text style={[styles.memberActionText, { color: theme.accent }]}>
+                    Make owner
+                  </Text>
+                </Pressable>
+                <Pressable onPress={() => handleRemoveMember(m)} hitSlop={8}>
+                  <Text style={styles.memberActionRemove}>Remove</Text>
+                </Pressable>
+              </View>
+            )}
           </View>
-        </View>
-      ))}
+        );
+      })}
       {isOwner && !atCapacity && (
         <Button
           title="Invite Member"
@@ -464,9 +549,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 12,
+    gap: 8,
   },
-  memberName: { fontSize: 17, fontWeight: '500' },
+  memberInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  memberName: { fontSize: 17, fontWeight: '500', flexShrink: 1 },
+  memberActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  memberActionText: { fontSize: 14, fontWeight: '600' },
+  memberActionRemove: { fontSize: 14, fontWeight: '600', color: '#FF3B30' },
   roleBadge: {
     paddingHorizontal: 10,
     paddingVertical: 3,

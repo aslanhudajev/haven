@@ -1,17 +1,23 @@
 import { useState } from 'react';
 import { Alert, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useAppGateContext } from '@app/providers/AppGateProvider';
+import { useAuth } from '@app/providers/AuthProvider';
 import { logout } from '@entities/auth';
+import { leaveFamily } from '@entities/family';
 import { Button } from '@shared/ui';
 import { Colors, Spacing } from '@shared/lib/theme';
 
 export default function SubExpiredScreen() {
   const { refresh } = useAppGateContext();
+  const { user } = useAuth();
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
   const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
+  const [leaving, setLeaving] = useState(false);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -28,6 +34,33 @@ export default function SubExpiredScreen() {
     } catch (err: any) {
       Alert.alert('Error', err.message);
     }
+  };
+
+  const handleLeaveFamily = () => {
+    if (!user) return;
+    Alert.alert(
+      'Leave this family?',
+      'You will need to create or join another family to use FiftyFifty again.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Leave family',
+          style: 'destructive',
+          onPress: async () => {
+            setLeaving(true);
+            try {
+              await leaveFamily(user.id);
+              refresh();
+              router.replace('/(onboarding)/create-family');
+            } catch (err: any) {
+              Alert.alert('Error', err.message ?? 'Could not leave family');
+            } finally {
+              setLeaving(false);
+            }
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -52,6 +85,12 @@ export default function SubExpiredScreen() {
 
       <View style={styles.actions}>
         <Button title="Refresh" onPress={handleRefresh} loading={refreshing} />
+        <Button
+          title="Leave family"
+          onPress={handleLeaveFamily}
+          loading={leaving}
+          variant="secondary"
+        />
         <Button
           title="Sign Out"
           onPress={handleLogout}

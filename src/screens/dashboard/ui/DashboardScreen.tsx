@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -14,12 +14,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@app/providers/AuthProvider';
 import { useAppGateContext } from '@app/providers/AppGateProvider';
 import { useFamilyStore, getFamily, getMembers } from '@entities/family';
-import { usePeriodStore, getActivePeriod, createPeriod, archivePeriod } from '@entities/period';
+import { usePeriodStore, ensureActivePeriodForDashboard } from '@entities/period';
 import { usePurchaseStore, getPurchases } from '@entities/purchase';
 import { BalanceCardWidget } from '@widgets/balance-card';
 import { PurchaseListWidget } from '@widgets/purchase-list';
 import { Colors, Spacing } from '@shared/lib/theme';
-import { formatDateRange, toISODate } from '@shared/lib/format';
+import { formatDateRange } from '@shared/lib/format';
+import { runSerialized } from '@shared/lib/async/runSerialized';
+import { periodLog } from '@shared/lib/debug/periodLog';
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -41,45 +43,31 @@ export default function DashboardScreen() {
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const loadedRef = useRef(false);
 
   const family = gate.family;
 
   useEffect(() => {
-    if (!user || !family || loadedRef.current) return;
-    loadedRef.current = true;
+    if (!user || !family) return;
 
     let cancelled = false;
 
     (async () => {
       try {
+        setLoading(true);
+        periodLog('dashboard.effect.load', { familyId: family.id, userId: user.id });
         setFamily(family);
 
-        const [mems, period] = await Promise.all([
-          getMembers(family.id),
-          getActivePeriod(family.id),
-        ]);
+        const mems = await getMembers(family.id);
         if (cancelled) return;
         setMembers(mems);
 
-        let currentPeriod = period;
-        const today = toISODate(new Date());
-
-        if (currentPeriod && currentPeriod.ends_at < today) {
-          await archivePeriod(currentPeriod.id);
-          currentPeriod = await createPeriod({
+        const currentPeriod = await runSerialized(`dashboard-period:${family.id}`, () =>
+          ensureActivePeriodForDashboard({
             familyId: family.id,
             cadence: family.period_cadence,
             anchorDay: family.period_anchor_day,
-            afterEndsAt: currentPeriod.ends_at,
-          });
-        } else if (!currentPeriod) {
-          currentPeriod = await createPeriod({
-            familyId: family.id,
-            cadence: family.period_cadence,
-            anchorDay: family.period_anchor_day,
-          });
-        }
+          }),
+        );
 
         if (cancelled) return;
         setActivePeriod(currentPeriod);
@@ -97,7 +85,7 @@ export default function DashboardScreen() {
     })();
 
     return () => { cancelled = true; };
-  }, [user, family?.id]);
+  }, [user?.id, family?.id]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -105,11 +93,15 @@ export default function DashboardScreen() {
       const fam = await getFamily(user!.id);
       setFamily(fam);
       if (fam) {
-        const [mems, period] = await Promise.all([
-          getMembers(fam.id),
-          getActivePeriod(fam.id),
-        ]);
+        const mems = await getMembers(fam.id);
         setMembers(mems);
+        const period = await runSerialized(`dashboard-period:${fam.id}`, () =>
+          ensureActivePeriodForDashboard({
+            familyId: fam.id,
+            cadence: fam.period_cadence,
+            anchorDay: fam.period_anchor_day,
+          }),
+        );
         setActivePeriod(period);
         if (period) {
           setPurchases(await getPurchases(period.id));

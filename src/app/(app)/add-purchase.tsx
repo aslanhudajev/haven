@@ -19,11 +19,12 @@ import { z } from 'zod';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@app/providers/AuthProvider';
 import { useAppGateContext } from '@app/providers/AppGateProvider';
-import { usePeriodStore, getActivePeriod, createPeriod } from '@entities/period';
+import { usePeriodStore, ensureActivePeriodForDashboard } from '@entities/period';
 import { addPurchase, uploadReceipt, usePurchaseStore } from '@entities/purchase';
 import { Button, Input } from '@shared/ui';
 import { Colors, Spacing } from '@shared/lib/theme';
 import { toCents } from '@shared/lib/format';
+import { runSerialized } from '@shared/lib/async/runSerialized';
 
 const schema = z.object({
   amount: z.string().min(1, 'Amount is required').refine(
@@ -58,14 +59,13 @@ export default function AddPurchaseScreen() {
     let cancelled = false;
     (async () => {
       try {
-        let period = await getActivePeriod(family.id);
-        if (!period) {
-          period = await createPeriod({
+        const period = await runSerialized(`dashboard-period:${family.id}`, () =>
+          ensureActivePeriodForDashboard({
             familyId: family.id,
             cadence: family.period_cadence,
             anchorDay: family.period_anchor_day,
-          });
-        }
+          }),
+        );
         if (!cancelled && period) {
           setLocalPeriod(period);
           setActivePeriod(period);

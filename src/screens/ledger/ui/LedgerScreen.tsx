@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -9,10 +9,16 @@ import {
   View,
   useColorScheme,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppGateContext } from '@app/providers/AppGateProvider';
-import { getFinishedPeriods, type Period } from '@entities/period';
+import {
+  countArchivedUnsettledPeriods,
+  getLedgerPeriods,
+  type Period,
+  useLedgerTabBadgeStore,
+} from '@entities/period';
 import { getPurchases } from '@entities/purchase';
 import { Card } from '@shared/ui';
 import { Colors, Spacing } from '@shared/lib/theme';
@@ -20,23 +26,32 @@ import { formatDateRange, formatMoney } from '@shared/lib/format';
 
 type PeriodWithTotal = Period & { totalCents: number };
 
-export default function HistoryScreen() {
+function ledgerStatusLabel(status: Period['status']): { text: string; settled: boolean; ongoing: boolean } {
+  if (status === 'active') return { text: 'Ongoing', settled: false, ongoing: true };
+  if (status === 'resolved') return { text: 'Settled', settled: true, ongoing: false };
+  return { text: 'Unsettled', settled: false, ongoing: false };
+}
+
+export default function LedgerScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
   const insets = useSafeAreaInsets();
   const { family } = useAppGateContext();
+  const setUnsettledCount = useLedgerTabBadgeStore((s) => s.setUnsettledArchivedCount);
 
   const [periods, setPeriods] = useState<PeriodWithTotal[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const skipNextFocusLoad = useRef(false);
 
   const loadPeriods = useCallback(async () => {
     if (!family) return;
     try {
-      const finished = await getFinishedPeriods(family.id);
+      const ledger = await getLedgerPeriods(family.id);
+      setUnsettledCount(countArchivedUnsettledPeriods(ledger));
       const withTotals = await Promise.all(
-        finished.map(async (p) => {
+        ledger.map(async (p) => {
           const purchases = await getPurchases(p.id);
           const totalCents = purchases.reduce((sum, pur) => sum + pur.amount_cents, 0);
           return { ...p, totalCents };
@@ -44,13 +59,24 @@ export default function HistoryScreen() {
       );
       setPeriods(withTotals);
     } catch (err) {
-      console.warn('History load error:', err);
+      console.warn('Ledger load error:', err);
     }
-  }, [family?.id]);
+  }, [family?.id, setUnsettledCount]);
 
   useEffect(() => {
+    skipNextFocusLoad.current = true;
     loadPeriods().finally(() => setLoading(false));
   }, [loadPeriods]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (skipNextFocusLoad.current) {
+        skipNextFocusLoad.current = false;
+        return;
+      }
+      void loadPeriods();
+    }, [loadPeriods]),
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -69,10 +95,10 @@ export default function HistoryScreen() {
   if (periods.length === 0) {
     return (
       <View style={[styles.centered, { backgroundColor: theme.background }]}>
-        <Text style={styles.emptyEmoji}>📊</Text>
-        <Text style={[styles.emptyTitle, { color: theme.text }]}>No history yet</Text>
+        <Text style={styles.emptyEmoji}>📒</Text>
+        <Text style={[styles.emptyTitle, { color: theme.text }]}>Nothing in the ledger yet</Text>
         <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
-          Completed periods will appear here
+          Your current period and past periods will show up here
         </Text>
       </View>
     );
@@ -88,7 +114,7 @@ export default function HistoryScreen() {
       >
         <View style={styles.list}>
           {periods.map((p) => {
-            const isResolved = p.status === 'resolved';
+            const { text: badgeText, settled, ongoing } = ledgerStatusLabel(p.status);
 
             return (
               <Pressable
@@ -117,16 +143,20 @@ export default function HistoryScreen() {
                     <View
                       style={[
                         styles.badge,
-                        { backgroundColor: isResolved ? '#34C75920' : theme.backgroundSelected },
+                        ongoing && { backgroundColor: `${theme.accent}22` },
+                        settled && { backgroundColor: '#34C75920' },
+                        !ongoing && !settled && { backgroundColor: theme.backgroundSelected },
                       ]}
                     >
                       <Text
                         style={[
                           styles.badgeText,
-                          { color: isResolved ? '#34C759' : theme.textSecondary },
+                          ongoing && { color: theme.accent },
+                          settled && { color: '#34C759' },
+                          !ongoing && !settled && { color: theme.textSecondary },
                         ]}
                       >
-                        {isResolved ? 'Settled' : 'Unsettled'}
+                        {badgeText}
                       </Text>
                     </View>
                   </View>

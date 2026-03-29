@@ -26,3 +26,19 @@ export async function getFinishedPeriods(familyId: string): Promise<Period[]> {
   if (error) throw error;
   return (data ?? []) as Period[];
 }
+
+/** Active period first (if any), then archived and resolved by `ends_at` descending. */
+export async function getLedgerPeriods(familyId: string): Promise<Period[]> {
+  const [active, finished] = await Promise.all([
+    getActivePeriod(familyId),
+    getFinishedPeriods(familyId),
+  ]);
+  const out: Period[] = [];
+  if (active) out.push(active);
+  out.push(...finished);
+  return out;
+}
+
+export function countArchivedUnsettledPeriods(periods: Period[]): number {
+  return periods.filter((p) => p.status === 'archived').length;
+}

@@ -104,6 +104,7 @@ export type Database = {
           created_by: string;
           expires_at: string;
           used_by: string | null;
+          used_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -113,6 +114,7 @@ export type Database = {
           created_by: string;
           expires_at: string;
           used_by?: string | null;
+          used_at?: string | null;
           created_at?: string;
         };
         Update: {
@@ -122,6 +124,7 @@ export type Database = {
           created_by?: string;
           expires_at?: string;
           used_by?: string | null;
+          used_at?: string | null;
           created_at?: string;
         };
         Relationships: [];
@@ -197,7 +200,12 @@ export type Database = {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      transfer_family_ownership: {
+        Args: { p_new_owner_user_id: string };
+        Returns: undefined;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

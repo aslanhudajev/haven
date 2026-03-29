@@ -12,15 +12,22 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { createFamily, useFamilyStore } from '@entities/family';
-import { createPeriod } from '@entities/period';
-import { REVENUECAT_ENABLED, getSubscriptionTier } from '@entities/subscription';
+import { createFamily, getFamily, useFamilyStore } from '@entities/family';
+import { createPeriod, getActivePeriod } from '@entities/period';
+import {
+  REVENUECAT_ENABLED,
+  checkSubscription,
+  getSubscriptionTier,
+  syncRevenueCatSubscription,
+} from '@entities/subscription';
 import { useAuth } from '@app/providers/AuthProvider';
 import { useAppGateContext } from '@app/providers/AppGateProvider';
 import { supabase } from '@shared/config/supabase';
 import { Button, Input } from '@shared/ui';
 import { Colors, Spacing } from '@shared/lib/theme';
 import { toCents } from '@shared/lib/format';
+import { runSerialized } from '@shared/lib/async/runSerialized';
+import { periodLog } from '@shared/lib/debug/periodLog';
 import type { Cadence } from '@shared/lib/period';
 
 const CADENCES: { value: Cadence; label: string }[] = [
@@ -73,32 +80,47 @@ export default function CreateFamilyScreen() {
         user.id,
       );
 
-      let isActive = true;
-      let maxMembers = 10;
+      await runSerialized(`dashboard-period:${family.id}`, async () => {
+        const existing = await getActivePeriod(family.id);
+        if (existing) {
+          periodLog('create_family.skip_period_exists', {
+            familyId: family.id,
+            periodId: existing.id,
+            ends_at: existing.ends_at,
+          });
+          return;
+        }
+        await createPeriod({
+          familyId: family.id,
+          cadence,
+          anchorDay,
+        });
+      });
 
-      if (REVENUECAT_ENABLED) {
-        const tier = await getSubscriptionTier();
-        maxMembers = tier.maxMembers;
+      if (!REVENUECAT_ENABLED) {
+        await supabase
+          .from('families')
+          .update({ is_active: true, max_members: 10 })
+          .eq('id', family.id);
+      } else {
+        await syncRevenueCatSubscription();
+        let latest = await getFamily(user.id);
+        if (latest && !latest.is_active && (await checkSubscription())) {
+          const tier = await getSubscriptionTier();
+          await supabase
+            .from('families')
+            .update({ is_active: true, max_members: tier.maxMembers })
+            .eq('id', latest.id);
+          latest = await getFamily(user.id);
+        }
       }
 
-      await supabase
-        .from('families')
-        .update({ is_active: isActive, max_members: maxMembers })
-        .eq('id', family.id);
+      const latest = await getFamily(user.id);
+      if (!latest) {
+        throw new Error('Could not load family after creation');
+      }
 
-      await createPeriod({
-        familyId: family.id,
-        cadence,
-        anchorDay,
-      });
-
-      setFamily({
-        ...family,
-        is_active: isActive,
-        max_members: maxMembers,
-        period_cadence: cadence,
-        period_anchor_day: anchorDay,
-      });
+      setFamily(latest);
       refresh();
     } catch (err: any) {
       Alert.alert('Error', err.message ?? 'Could not create family');

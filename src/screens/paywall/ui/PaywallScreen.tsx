@@ -8,12 +8,15 @@ import {
   useColorScheme,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Colors } from '@shared/lib/theme';
 import { useAuth } from '@app/providers/AuthProvider';
 import { useAppGateContext } from '@app/providers/AppGateProvider';
 import {
   REVENUECAT_ENABLED,
+  checkSubscription,
   getSubscriptionTier,
+  syncRevenueCatSubscription,
 } from '@entities/subscription';
 import { supabase } from '@shared/config/supabase';
 import { Button } from '@shared/ui';
@@ -24,6 +27,7 @@ export default function PaywallScreen() {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { user } = useAuth();
   const { refresh, family, isOwner } = useAppGateContext();
   const [restoring, setRestoring] = useState(false);
@@ -53,13 +57,24 @@ export default function PaywallScreen() {
   };
 
   const syncAfterPurchase = async () => {
-    if (!user || !family) return;
+    if (!user) return;
     try {
-      const tier = await getSubscriptionTier();
-      await supabase
-        .from('families')
-        .update({ is_active: true, max_members: tier.maxMembers })
-        .eq('id', family.id);
+      if (REVENUECAT_ENABLED) {
+        await syncRevenueCatSubscription();
+        if (family && (await checkSubscription())) {
+          const tier = await getSubscriptionTier();
+          await supabase
+            .from('families')
+            .update({ is_active: true, max_members: tier.maxMembers })
+            .eq('id', family.id);
+        }
+      } else if (family) {
+        const tier = await getSubscriptionTier();
+        await supabase
+          .from('families')
+          .update({ is_active: true, max_members: tier.maxMembers })
+          .eq('id', family.id);
+      }
     } catch (err) {
       console.warn('Post-purchase sync failed:', err);
     }
@@ -152,6 +167,16 @@ export default function PaywallScreen() {
                 </Text>
               )}
             </Pressable>
+            {isRenewal && (
+              <Pressable
+                style={({ pressed }) => [styles.restoreButton, pressed && styles.buttonPressed]}
+                onPress={() => router.push('/(app)/(tabs)/settings')}
+              >
+                <Text style={[styles.restoreText, { color: theme.textSecondary }]}>
+                  Family & account settings
+                </Text>
+              </Pressable>
+            )}
           </>
         ) : (
           <Button title="Continue (dev)" onPress={handleDevContinue} />

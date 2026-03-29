@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { Colors, Spacing } from '@shared/lib/theme';
 import { logout } from '@entities/auth';
 import { useFamilyStore } from '@entities/family';
-import { usePeriodStore } from '@entities/period';
+import { useLedgerTabBadgeStore, usePeriodStore } from '@entities/period';
 import { usePurchaseStore } from '@entities/purchase';
 import { REVENUECAT_ENABLED } from '@entities/subscription';
 import { useAuth } from '@app/providers/AuthProvider';
@@ -20,6 +20,7 @@ export default function SettingsScreen() {
   const { family, isOwner, refresh } = useAppGateContext();
   const clearFamily = useFamilyStore((s) => s.clear);
   const clearPeriod = usePeriodStore((s) => s.clear);
+  const clearLedgerBadge = useLedgerTabBadgeStore((s) => s.clear);
   const clearPurchases = usePurchaseStore((s) => s.clear);
 
   const handleLeaveFamily = () => {
@@ -48,6 +49,7 @@ export default function SettingsScreen() {
             }
             clearFamily();
             clearPeriod();
+            clearLedgerBadge();
             clearPurchases();
             refresh();
           } catch (err: any) {
@@ -71,6 +73,7 @@ export default function SettingsScreen() {
             try {
               clearFamily();
               clearPeriod();
+              clearLedgerBadge();
               clearPurchases();
 
               if (REVENUECAT_ENABLED) {

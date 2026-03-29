@@ -6,3 +6,4 @@ export {
   checkSubscription,
   getSubscriptionTier,
 } from './libs/initRevenueCat';
+export { syncRevenueCatSubscription } from './libs/syncRevenueCatSubscription';

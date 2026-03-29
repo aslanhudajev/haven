@@ -8,10 +8,21 @@ const TIER_MAX_MEMBERS: Record<string, number> = {
   fiftyfifty_small_yearly: 2,
   fiftyfifty_medium_monthly: 5,
   fiftyfifty_medium_yearly: 5,
+  duo_monthly: 2,
+  duo_yearly: 2,
+  family_monthly: 5,
+  family_yearly: 5,
 };
 const DEFAULT_MAX_MEMBERS = 2;
 
 const REVENUECAT_WEBHOOK_AUTH = Deno.env.get('REVENUECAT_WEBHOOK_AUTH') ?? '';
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isUuid(s: string): boolean {
+  return UUID_RE.test(s);
+}
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
@@ -38,9 +49,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    const appUserId = event.app_user_id;
+    const appUserId = String(event.app_user_id ?? '');
     const productId = event.product_id ?? '';
     const type: string = event.type ?? '';
+
+    if (!isUuid(appUserId)) {
+      return new Response(JSON.stringify({ status: 'ignored_non_uuid', app_user_id: appUserId }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
     const activatingEvents = [
       'INITIAL_PURCHASE',
@@ -68,7 +86,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const maxMembers = TIER_MAX_MEMBERS[productId] ?? DEFAULT_MAX_MEMBERS;
+    const tierMax = TIER_MAX_MEMBERS[productId] ?? DEFAULT_MAX_MEMBERS;
 
     const { data: membership, error: membershipError } = await supabase
       .from('family_members')
@@ -84,15 +102,57 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { error: updateError } = await supabase
-      .from('families')
-      .update({ is_active: isActive, max_members: maxMembers })
-      .eq('id', membership.family_id);
+    const familyId = membership.family_id;
 
-    if (updateError) {
-      console.error('Family update error:', updateError);
+    if (isActive) {
+      const { count, error: countError } = await supabase
+        .from('family_members')
+        .select('*', { count: 'exact', head: true })
+        .eq('family_id', familyId);
+
+      if (countError) {
+        console.error('Member count error:', countError);
+        return new Response(
+          JSON.stringify({ error: 'count_failed', details: countError.message }),
+          { status: 500, headers: { 'Content-Type': 'application/json' } },
+        );
+      }
+
+      const maxMembers = Math.max(tierMax, count ?? 0);
+
+      const { error: updateError } = await supabase
+        .from('families')
+        .update({ is_active: true, max_members: maxMembers })
+        .eq('id', familyId);
+
+      if (updateError) {
+        console.error('Family update error:', updateError);
+        return new Response(
+          JSON.stringify({ error: 'update_failed', details: updateError.message }),
+          { status: 500, headers: { 'Content-Type': 'application/json' } },
+        );
+      }
+
       return new Response(
-        JSON.stringify({ error: 'update_failed', details: updateError.message }),
+        JSON.stringify({
+          status: 'ok',
+          family_id: familyId,
+          is_active: true,
+          max_members: maxMembers,
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+
+    const { error: deactivateError } = await supabase
+      .from('families')
+      .update({ is_active: false })
+      .eq('id', familyId);
+
+    if (deactivateError) {
+      console.error('Family deactivate error:', deactivateError);
+      return new Response(
+        JSON.stringify({ error: 'update_failed', details: deactivateError.message }),
         { status: 500, headers: { 'Content-Type': 'application/json' } },
       );
     }
@@ -100,9 +160,8 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         status: 'ok',
-        family_id: membership.family_id,
-        is_active: isActive,
-        max_members: maxMembers,
+        family_id: familyId,
+        is_active: false,
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } },
     );

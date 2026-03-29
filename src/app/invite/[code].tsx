@@ -11,7 +11,7 @@ import { APP_STORAGE_PENDING_INVITE_KEY } from '@shared/lib/storage/appStorageKe
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '@app/providers/AuthProvider';
 import { useAppGateContext } from '@app/providers/AppGateProvider';
-import { joinFamily } from '@entities/family';
+import { isJoinFamilyError, joinFamily } from '@entities/family';
 import { Colors } from '@shared/lib/theme';
 import { Button } from '@shared/ui';
 
@@ -40,8 +40,14 @@ export default function InviteScreen() {
       await AsyncStorage.removeItem(APP_STORAGE_PENDING_INVITE_KEY);
       refresh();
       router.replace('/(app)/(tabs)');
-    } catch (err: any) {
-      setError(err.message ?? 'Could not join family');
+    } catch (err: unknown) {
+      if (isJoinFamilyError(err)) {
+        setError(err.message);
+      } else if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Could not join family');
+      }
     } finally {
       setJoining(false);
     }

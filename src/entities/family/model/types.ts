@@ -32,5 +32,6 @@ export type FamilyInvite = {
   created_by: string;
   expires_at: string;
   used_by: string | null;
+  used_at: string | null;
   created_at: string;
 };

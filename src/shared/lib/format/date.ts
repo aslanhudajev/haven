@@ -47,7 +47,29 @@ export function formatDate(date: Date | string): string {
   return `${d.getDate()} ${monthsShort[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-/** "2026-03-01" — ISO date string for Supabase `date` columns. */
+/** "2026-03-01" in UTC — from `Date`’s instant (can differ from local calendar day). */
 export function toISODate(date: Date): string {
   return date.toISOString().split('T')[0];
 }
+
+/**
+ * Calendar YYYY-MM-DD in the device local timezone. Use for `periods.starts_at` /
+ * `ends_at` and for comparing “today” to those columns so rotation matches
+ * `computeCurrentPeriodDates` (which uses local `Date` components).
+ */
+export function toLocalCalendarISODate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/**
+ * True when local “today” is strictly after `endsAt` (inclusive end date in DB).
+ */
+export function isLocalCalendarDateAfterInclusiveEnd(endsAt: string, now = new Date()): boolean {
+  return toLocalCalendarISODate(now) > endsAt;
+}
+
+/** @deprecated Use isLocalCalendarDateAfterInclusiveEnd (same behavior now). */
+export const isUtcDateAfterInclusiveEnd = isLocalCalendarDateAfterInclusiveEnd;

@@ -8,6 +8,7 @@ import {
   checkSubscription,
   configureRevenueCat,
   loginRevenueCat,
+  syncRevenueCatSubscription,
 } from '@entities/subscription';
 import { supabase } from '@shared/config/supabase';
 import {
@@ -86,19 +87,27 @@ export function useAppGate(user: SupabaseUser | null): AppGateData {
     ]);
 
     setProfile(profileData);
-    setFamily(familyData);
 
-    if (familyData) {
-      const { data: memberRow } = await supabase
+    let nextFamily = familyData;
+    let memberRow: FamilyMember | null = null;
+
+    if (nextFamily) {
+      const { data: m } = await supabase
         .from('family_members')
         .select('*')
-        .eq('family_id', familyData.id)
+        .eq('family_id', nextFamily.id)
         .eq('user_id', userId)
         .single();
-      setMembership(memberRow as FamilyMember | null);
-    } else {
-      setMembership(null);
+      memberRow = m as FamilyMember | null;
+
+      if (REVENUECAT_ENABLED && memberRow?.role === 'owner') {
+        await syncRevenueCatSubscription();
+        nextFamily = await getFamily(userId);
+      }
     }
+
+    setFamily(nextFamily);
+    setMembership(memberRow);
   }, []);
 
   const evaluate = useCallback(async () => {

@@ -1,6 +1,8 @@
 import { supabase } from '@shared/config/supabase';
+import { periodLog } from '@shared/lib/debug/periodLog';
 
 export async function archivePeriod(periodId: string) {
+  periodLog('archivePeriod', { periodId });
   const { error } = await supabase
     .from('periods')
     .update({ status: 'archived' })

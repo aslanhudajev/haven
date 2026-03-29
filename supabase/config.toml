@@ -381,13 +381,16 @@ s3_access_key = "env(S3_ACCESS_KEY)"
 # Configures AWS_SECRET_ACCESS_KEY for S3 bucket
 s3_secret_key = "env(S3_SECRET_KEY)"
 
-[functions.hello-world]
+[functions.revenuecat-webhook]
 enabled = true
-verify_jwt = true
-import_map = "./functions/hello-world/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
-entrypoint = "./functions/hello-world/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/hello-world/*.html" ]
+verify_jwt = false
+import_map = "./functions/revenuecat-webhook/deno.json"
+entrypoint = "./functions/revenuecat-webhook/index.ts"
+
+# JWT is verified inside the function via supabase.auth.getUser(). Built-in verify_jwt can
+# fail on some local CLI/runtime builds (ES256 CryptoKey vs Uint8Array) before user code runs.
+[functions.sync-revenuecat-subscription]
+enabled = true
+verify_jwt = false
+import_map = "./functions/sync-revenuecat-subscription/deno.json"
+entrypoint = "./functions/sync-revenuecat-subscription/index.ts"

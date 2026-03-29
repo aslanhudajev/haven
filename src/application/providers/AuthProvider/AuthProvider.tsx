@@ -1,8 +1,7 @@
 import { type User as UserSupabase } from '@supabase/supabase-js';
 import * as SplashScreen from 'expo-splash-screen';
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { AppState, View } from 'react-native';
-import { loginRevenueCat, REVENUECAT_ENABLED } from '@entities/subscription';
 import { supabase } from '@shared/config/supabase';
 import type { ReactNode } from 'react';
 
@@ -32,7 +31,6 @@ export function useAuth() {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<UserSupabase | null>(null);
-  const transferredRef = useRef(false);
 
   useEffect(() => {
     if (!supabase) {
@@ -51,16 +49,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authListener?.subscription.unsubscribe();
     };
   }, []);
-
-  useEffect(() => {
-    if (user && REVENUECAT_ENABLED && !transferredRef.current) {
-      transferredRef.current = true;
-      loginRevenueCat(user.id).catch(console.warn);
-    }
-    if (!user) {
-      transferredRef.current = false;
-    }
-  }, [user]);
 
   const onLayoutRootView = useCallback(() => {
     requestAnimationFrame(() => {

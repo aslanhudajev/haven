@@ -1,7 +1,7 @@
 import { useRootNavigationState, useSegments, Redirect } from 'expo-router';
 import { createContext, useContext } from 'react';
 import { useAuth } from '../AuthProvider';
-import { useAppGate, type AppGateData } from './useAppGate';
+import { useAppGate, type AppGateData, type AppGateTarget } from './useAppGate';
 import type { ReactNode } from 'react';
 
 const AppGateContext = createContext<AppGateData | null>(null);
@@ -24,7 +24,9 @@ export function AppGateProvider({ children }: { children: ReactNode }) {
   );
 }
 
-const ROUTE_TO_GROUP: Record<string, string> = {
+const ROUTE_TO_GROUP: Record<Exclude<AppGateTarget, 'invite-pending'>, string> & {
+  'invite-pending': string;
+} = {
   '/(auth)/welcome': '(auth)',
   '/(auth)/login': '(auth)',
   '/paywall': 'paywall',
@@ -32,6 +34,7 @@ const ROUTE_TO_GROUP: Record<string, string> = {
   '/(onboarding)/create-family': '(onboarding)',
   '/(onboarding)/sub-expired': '(onboarding)',
   '/(app)/(tabs)': '(app)',
+  'invite-pending': 'invite',
 };
 
 function currentPathFromSegments(segments: string[]): string {
@@ -39,15 +42,28 @@ function currentPathFromSegments(segments: string[]): string {
 }
 
 function AppGateRedirect() {
-  const { targetRoute, isLoading } = useAppGateContext();
+  const { targetRoute, isLoading, pendingInvite } = useAppGateContext();
   const segments = useSegments();
   const ready = !!useRootNavigationState()?.key;
 
   if (!ready || isLoading) return null;
 
   const currentGroup = (segments[0] as string | undefined) ?? '';
-  const targetGroup = ROUTE_TO_GROUP[targetRoute] ?? '';
+
+  if (targetRoute === 'invite-pending' && pendingInvite) {
+    if (currentGroup === 'invite' && segments[1] === pendingInvite) {
+      return null;
+    }
+    return <Redirect href={`/invite/${pendingInvite}`} />;
+  }
+
+  const targetGroup = ROUTE_TO_GROUP[targetRoute as AppGateTarget] ?? '';
   const currentPath = currentPathFromSegments(segments);
+
+  if (currentGroup === 'invite') {
+    if (targetGroup === 'invite') return null;
+    return <Redirect href={targetRoute as Exclude<AppGateTarget, 'invite-pending'>} />;
+  }
 
   if (currentGroup === targetGroup) {
     if (currentGroup === '(onboarding)' && currentPath !== targetRoute) {

@@ -8,6 +8,7 @@ import {
   configureRevenueCat,
   getSubscriptionTier,
   loginRevenueCat,
+  resolveMaxMembersForTier,
   syncRevenueCatSubscription,
 } from '@entities/subscription';
 import { supabase } from '@shared/config/supabase';
@@ -25,7 +26,8 @@ export type AppGateTarget =
   | '/(onboarding)/profile'
   | '/(onboarding)/create-family'
   | '/(onboarding)/sub-expired'
-  | '/(app)/(tabs)';
+  | '/(app)/(tabs)'
+  | 'invite-pending';
 
 export type AppGateData = {
   targetRoute: AppGateTarget;
@@ -38,6 +40,85 @@ export type AppGateData = {
   refresh: () => void;
 };
 
+async function readLocalFlags(): Promise<{ welcomed: boolean; inviteCode: string | null }> {
+  const [welcomedVal, inviteVal] = await Promise.all([
+    loadWelcomedFlag(),
+    loadPendingInviteCode(),
+  ]);
+  return { welcomed: welcomedVal === 'true', inviteCode: inviteVal };
+}
+
+async function readHasSubscription(): Promise<boolean> {
+  if (!REVENUECAT_ENABLED) return true;
+  await configureRevenueCat();
+  return checkSubscription();
+}
+
+async function resolveUserData(userId: string, inviteCode: string | null): Promise<{
+  profile: Profile | null;
+  family: Family | null;
+  membership: FamilyMember | null;
+  pendingInvite: string | null;
+}> {
+  if (inviteCode) {
+    try {
+      await joinFamily(inviteCode);
+      await AsyncStorage.removeItem(APP_STORAGE_PENDING_INVITE_KEY);
+    } catch (err) {
+      console.warn('Auto-join invite failed:', err);
+    }
+  }
+
+  const pendingInvite = await loadPendingInviteCode();
+
+  const [profileData, familyData] = await Promise.all([getProfile(userId), getFamily(userId)]);
+
+  let nextFamily = familyData;
+  let memberRow: FamilyMember | null = null;
+
+  if (nextFamily) {
+    const { data: m } = await supabase
+      .from('family_members')
+      .select('*')
+      .eq('family_id', nextFamily.id)
+      .eq('user_id', userId)
+      .single();
+    memberRow = m as FamilyMember | null;
+
+    if (REVENUECAT_ENABLED && memberRow?.role === 'owner') {
+      await syncRevenueCatSubscription();
+      nextFamily = await getFamily(userId);
+      if (nextFamily && !nextFamily.is_active) {
+        const rcActive = await checkSubscription();
+        if (rcActive) {
+          const tier = await getSubscriptionTier();
+          const { count, error: countErr } = await supabase
+            .from('family_members')
+            .select('*', { count: 'exact', head: true })
+            .eq('family_id', nextFamily.id);
+          if (!countErr) {
+            const maxMembers = resolveMaxMembersForTier(tier.maxMembers, count ?? 0);
+            const { error: patchErr } = await supabase
+              .from('families')
+              .update({ is_active: true, max_members: maxMembers })
+              .eq('id', nextFamily.id);
+            if (!patchErr) {
+              nextFamily = await getFamily(userId);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return {
+    profile: profileData,
+    family: nextFamily,
+    membership: memberRow,
+    pendingInvite,
+  };
+}
+
 export function useAppGate(user: SupabaseUser | null): AppGateData {
   const [isLoading, setIsLoading] = useState(true);
   const [welcomed, setWelcomed] = useState<boolean | null>(null);
@@ -49,103 +130,60 @@ export function useAppGate(user: SupabaseUser | null): AppGateData {
 
   const prevUserId = useRef<string | null>(null);
 
-  const loadLocalFlags = useCallback(async () => {
-    const [welcomedVal, inviteVal] = await Promise.all([
-      loadWelcomedFlag(),
-      loadPendingInviteCode(),
-    ]);
-    setWelcomed(welcomedVal === 'true');
-    setPendingInvite(inviteVal);
-    return { welcomed: welcomedVal === 'true', inviteCode: inviteVal };
-  }, []);
-
-  const loadSubscription = useCallback(async () => {
-    if (!REVENUECAT_ENABLED) {
-      setHasSubscription(true);
-      return;
-    }
-    await configureRevenueCat();
-    const active = await checkSubscription();
-    setHasSubscription(active);
-  }, []);
-
-  const loadUserData = useCallback(async (userId: string, inviteCode: string | null) => {
-    if (inviteCode) {
-      try {
-        await joinFamily(inviteCode);
-        await AsyncStorage.removeItem(APP_STORAGE_PENDING_INVITE_KEY);
-        setPendingInvite(null);
-      } catch (err) {
-        console.warn('Auto-join invite failed:', err);
-        await AsyncStorage.removeItem(APP_STORAGE_PENDING_INVITE_KEY);
-        setPendingInvite(null);
-      }
-    }
-
-    const [profileData, familyData] = await Promise.all([getProfile(userId), getFamily(userId)]);
-
-    setProfile(profileData);
-
-    let nextFamily = familyData;
-    let memberRow: FamilyMember | null = null;
-
-    if (nextFamily) {
-      const { data: m } = await supabase
-        .from('family_members')
-        .select('*')
-        .eq('family_id', nextFamily.id)
-        .eq('user_id', userId)
-        .single();
-      memberRow = m as FamilyMember | null;
-
-      if (REVENUECAT_ENABLED && memberRow?.role === 'owner') {
-        await syncRevenueCatSubscription();
-        nextFamily = await getFamily(userId);
-        if (nextFamily && !nextFamily.is_active) {
-          const rcActive = await checkSubscription();
-          if (rcActive) {
-            const tier = await getSubscriptionTier();
-            const { error: patchErr } = await supabase
-              .from('families')
-              .update({ is_active: true, max_members: tier.maxMembers })
-              .eq('id', nextFamily.id);
-            if (!patchErr) {
-              nextFamily = await getFamily(userId);
-            }
-          }
-        }
-      }
-    }
-
-    setFamily(nextFamily);
-    setMembership(memberRow);
-  }, []);
-
   const evaluate = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { inviteCode } = await loadLocalFlags();
-      await loadSubscription();
+      const { welcomed: w, inviteCode } = await readLocalFlags();
+      const hasSubAnon = await readHasSubscription();
+
+      let nextProfile: Profile | null = null;
+      let nextFamily: Family | null = null;
+      let nextMembership: FamilyMember | null = null;
+      let nextPending = inviteCode;
+      let nextHasSub = hasSubAnon;
 
       if (user) {
         if (prevUserId.current !== user.id) {
           await loginRevenueCat(user.id);
-          const active = await checkSubscription();
-          setHasSubscription(active);
           prevUserId.current = user.id;
         }
-        await loadUserData(user.id, inviteCode);
+        const resolved = await resolveUserData(user.id, inviteCode);
+        nextProfile = resolved.profile;
+        nextFamily = resolved.family;
+        nextMembership = resolved.membership;
+        nextPending = resolved.pendingInvite;
+        nextHasSub = await checkSubscription();
       } else {
-        setProfile(null);
-        setFamily(null);
-        setMembership(null);
+        prevUserId.current = null;
+        nextPending = await loadPendingInviteCode();
+        nextHasSub = hasSubAnon;
       }
+
+      setWelcomed(w);
+      setPendingInvite(nextPending);
+      setHasSubscription(nextHasSub);
+      setProfile(nextProfile);
+      setFamily(nextFamily);
+      setMembership(nextMembership);
     } catch (err) {
       console.warn('AppGate evaluate error:', err);
+      try {
+        const { welcomed: w, inviteCode } = await readLocalFlags();
+        setWelcomed(w);
+        setPendingInvite(inviteCode);
+      } catch {
+        setWelcomed(false);
+        setPendingInvite(null);
+      }
+      setHasSubscription(REVENUECAT_ENABLED ? false : true);
+      setProfile(null);
+      setFamily(null);
+      setMembership(null);
+      prevUserId.current = null;
     } finally {
       setIsLoading(false);
     }
-  }, [user, loadLocalFlags, loadSubscription, loadUserData]);
+  }, [user]);
 
   useEffect(() => {
     evaluate();
@@ -160,6 +198,7 @@ export function useAppGate(user: SupabaseUser | null): AppGateData {
     profile,
     family,
     isOwner,
+    pendingInvite,
   });
 
   return {
@@ -181,19 +220,24 @@ function computeTarget(state: {
   profile: Profile | null;
   family: Family | null;
   isOwner: boolean;
+  pendingInvite: string | null;
 }): AppGateTarget {
-  const { welcomed, hasSubscription, user, profile, family, isOwner } = state;
+  const { welcomed, hasSubscription, user, profile, family, isOwner, pendingInvite } = state;
 
-  if (welcomed === null || hasSubscription === null) return '/(app)/(tabs)';
+  if (welcomed === null || hasSubscription === null) {
+    return '/(auth)/welcome';
+  }
 
   if (!welcomed) return '/(auth)/welcome';
 
   if (!hasSubscription && !user) return '/paywall';
-  if (!hasSubscription && user && !family) return '/paywall';
+  if (!hasSubscription && user && !family && !pendingInvite) return '/paywall';
 
   if (!user) return '/(auth)/login';
 
   if (!profile?.onboarding_completed) return '/(onboarding)/profile';
+
+  if (!family && pendingInvite) return 'invite-pending';
 
   if (!family) return '/(onboarding)/create-family';
 

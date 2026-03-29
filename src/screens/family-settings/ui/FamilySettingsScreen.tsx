@@ -152,6 +152,11 @@ function MembersSection({
               await transferFamilyOwnership(m.user_id);
               await reloadMembers();
               refresh();
+              Alert.alert(
+                'Ownership transferred',
+                'Billing may need to be active on the new owner’s account for the family to stay unlocked. They may need to subscribe or restore purchases in the App Store under their Apple ID.',
+                [{ text: 'OK' }],
+              );
             } catch (err: unknown) {
               Alert.alert('Error', getErrorMessage(err, 'Could not transfer ownership'));
             }

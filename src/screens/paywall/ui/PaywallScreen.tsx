@@ -1,11 +1,13 @@
-import { useRouter } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  REQUIRED_ENTITLEMENT_ID,
   REVENUECAT_ENABLED,
   checkSubscription,
   getSubscriptionTier,
+  resolveMaxMembersForTier,
   syncRevenueCatSubscription,
 } from '@entities/subscription';
 import { supabase } from '@shared/config/supabase';
@@ -23,33 +25,11 @@ export default function PaywallScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { refresh, family, isOwner } = useAppGateContext();
-  const [restoring, setRestoring] = useState(false);
-  const attempted = useRef(false);
+  const [restoring, setRestoring] = React.useState(false);
 
   const isRenewal = !!user && !!family && isOwner && !family.is_active;
 
-  const presentPaywall = async () => {
-    if (!REVENUECAT_ENABLED) return;
-    try {
-      const RevenueCatUI = (await import('react-native-purchases-ui')).default;
-      const { PAYWALL_RESULT } = await import('react-native-purchases-ui');
-      const result = await RevenueCatUI.presentPaywallIfNeeded({
-        requiredEntitlementIdentifier: 'pro_access',
-      });
-      if (
-        result === PAYWALL_RESULT.PURCHASED ||
-        result === PAYWALL_RESULT.RESTORED ||
-        result === PAYWALL_RESULT.NOT_PRESENTED
-      ) {
-        await syncAfterPurchase();
-        refresh();
-      }
-    } catch {
-      // RevenueCat UI not available
-    }
-  };
-
-  const syncAfterPurchase = async () => {
+  const syncAfterPurchase = useCallback(async () => {
     try {
       if (REVENUECAT_ENABLED) {
         const Purchases = (await import('react-native-purchases')).default;
@@ -73,10 +53,17 @@ export default function PaywallScreen() {
             .maybeSingle();
           if (owned) {
             const tier = await getSubscriptionTier();
-            await supabase
-              .from('families')
-              .update({ is_active: true, max_members: tier.maxMembers })
-              .eq('id', owned.id);
+            const { count, error: countErr } = await supabase
+              .from('family_members')
+              .select('*', { count: 'exact', head: true })
+              .eq('family_id', owned.id);
+            if (!countErr) {
+              const maxMembers = resolveMaxMembersForTier(tier.maxMembers, count ?? 0);
+              await supabase
+                .from('families')
+                .update({ is_active: true, max_members: maxMembers })
+                .eq('id', owned.id);
+            }
           }
         }
       } else {
@@ -87,23 +74,51 @@ export default function PaywallScreen() {
           .maybeSingle();
         if (owned) {
           const tier = await getSubscriptionTier();
-          await supabase
-            .from('families')
-            .update({ is_active: true, max_members: tier.maxMembers })
-            .eq('id', owned.id);
+          const { count, error: countErr } = await supabase
+            .from('family_members')
+            .select('*', { count: 'exact', head: true })
+            .eq('family_id', owned.id);
+          if (!countErr) {
+            const maxMembers = resolveMaxMembersForTier(tier.maxMembers, count ?? 0);
+            await supabase
+              .from('families')
+              .update({ is_active: true, max_members: maxMembers })
+              .eq('id', owned.id);
+          }
         }
       }
     } catch (err) {
       console.warn('Post-purchase sync failed:', err);
     }
-  };
+  }, [user]);
 
-  useEffect(() => {
-    if (attempted.current) return;
-    attempted.current = true;
-    const timer = setTimeout(presentPaywall, 300);
-    return () => clearTimeout(timer);
-  }, []);
+  const presentPaywall = useCallback(async () => {
+    if (!REVENUECAT_ENABLED) return;
+    try {
+      const RevenueCatUI = (await import('react-native-purchases-ui')).default;
+      const { PAYWALL_RESULT } = await import('react-native-purchases-ui');
+      const result = await RevenueCatUI.presentPaywallIfNeeded({
+        requiredEntitlementIdentifier: REQUIRED_ENTITLEMENT_ID,
+      });
+      if (
+        result === PAYWALL_RESULT.PURCHASED ||
+        result === PAYWALL_RESULT.RESTORED ||
+        result === PAYWALL_RESULT.NOT_PRESENTED
+      ) {
+        await syncAfterPurchase();
+        refresh();
+      }
+    } catch {
+      // RevenueCat UI not available
+    }
+  }, [syncAfterPurchase, refresh]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const timer = setTimeout(() => void presentPaywall(), 300);
+      return () => clearTimeout(timer);
+    }, [presentPaywall]),
+  );
 
   const handleRestore = async () => {
     if (!REVENUECAT_ENABLED) return;

@@ -14,7 +14,9 @@ const TIER_MAX_MEMBERS: Record<string, number> = {
   family_yearly: 5,
 };
 const DEFAULT_MAX_MEMBERS = 2;
-const ENTITLEMENT_ID = 'pro_access';
+
+/** Must match RevenueCat dashboard entitlement identifier (Product catalog → Entitlements). */
+const ENTITLEMENT_ID = 'FiftyFifty Pro';
 
 function isEntitlementActive(expiresDate: string | null | undefined): boolean {
   if (expiresDate == null || expiresDate === '') return true;
@@ -87,6 +89,8 @@ Deno.serve(async (req) => {
   }
 
   const rcUrl = `https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(user.id)}`;
+  console.log('[sync-revenuecat] V1 GET subscribers', { userId: user.id, entitlementExpected: ENTITLEMENT_ID });
+
   const rcRes = await fetch(rcUrl, {
     headers: { Authorization: `Bearer ${rcSecret}` },
   });
@@ -95,10 +99,18 @@ Deno.serve(async (req) => {
   let productId: string | null = null;
 
   if (rcRes.status === 404) {
+    console.log('[sync-revenuecat] RevenueCat 404 — no subscriber for this app_user_id');
     isActive = false;
   } else if (!rcRes.ok) {
     const text = await rcRes.text();
-    console.error('RevenueCat API error:', rcRes.status, text);
+    console.error('[sync-revenuecat] RevenueCat API error', {
+      status: rcRes.status,
+      body: text,
+      hint403:
+        rcRes.status === 403
+          ? 'If body mentions API V1 vs secret key, use a legacy V1 secret from RevenueCat or their V2 API — this function only calls V1.'
+          : undefined,
+    });
     return new Response(JSON.stringify({ error: 'revenuecat_error', status: rcRes.status }), {
       status: 502,
       headers: { 'Content-Type': 'application/json' },
@@ -112,12 +124,33 @@ Deno.serve(async (req) => {
         >;
       };
     };
+    const entKeys = body.subscriber?.entitlements
+      ? Object.keys(body.subscriber.entitlements)
+      : [];
+    console.log('[sync-revenuecat] V1 subscriber entitlements keys', entKeys);
+
     const ent = body.subscriber?.entitlements?.[ENTITLEMENT_ID];
-    if (ent && isEntitlementActive(ent.expires_date ?? null)) {
-      isActive = true;
-      productId = ent.product_identifier ?? null;
+    if (ent) {
+      const active = isEntitlementActive(ent.expires_date ?? null);
+      console.log('[sync-revenuecat] Matched entitlement', {
+        identifier: ENTITLEMENT_ID,
+        expires_date: ent.expires_date ?? null,
+        product_identifier: ent.product_identifier ?? null,
+        treatedAsActive: active,
+      });
+      if (active) {
+        isActive = true;
+        productId = ent.product_identifier ?? null;
+      }
+    } else {
+      console.warn(
+        '[sync-revenuecat] No entitlement matching ENTITLEMENT_ID — check dashboard identifier matches exactly (case and spaces).',
+        { expected: ENTITLEMENT_ID, receivedKeys: entKeys },
+      );
     }
   }
+
+  console.log('[sync-revenuecat] Resolved', { isActive, productId, families: ownedFamilies.length });
 
   const tierMax = productId ? (TIER_MAX_MEMBERS[productId] ?? DEFAULT_MAX_MEMBERS) : DEFAULT_MAX_MEMBERS;
 

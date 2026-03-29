@@ -7,9 +7,11 @@ import { z } from 'zod';
 import { createFamily, getFamily, useFamilyStore } from '@entities/family';
 import { createPeriod, getActivePeriod } from '@entities/period';
 import {
+  DEV_DEFAULT_MAX_MEMBERS,
   REVENUECAT_ENABLED,
   checkSubscription,
   getSubscriptionTier,
+  resolveMaxMembersForTier,
   syncRevenueCatSubscription,
 } from '@entities/subscription';
 import { supabase } from '@shared/config/supabase';
@@ -93,18 +95,25 @@ export default function CreateFamilyScreen() {
       if (!REVENUECAT_ENABLED) {
         await supabase
           .from('families')
-          .update({ is_active: true, max_members: 10 })
+          .update({ is_active: true, max_members: DEV_DEFAULT_MAX_MEMBERS })
           .eq('id', family.id);
       } else {
         await syncRevenueCatSubscription();
         let latest = await getFamily(user.id);
         if (latest && !latest.is_active && (await checkSubscription())) {
           const tier = await getSubscriptionTier();
-          await supabase
-            .from('families')
-            .update({ is_active: true, max_members: tier.maxMembers })
-            .eq('id', latest.id);
-          latest = await getFamily(user.id);
+          const { count, error: countErr } = await supabase
+            .from('family_members')
+            .select('*', { count: 'exact', head: true })
+            .eq('family_id', latest.id);
+          if (!countErr) {
+            const maxMembers = resolveMaxMembersForTier(tier.maxMembers, count ?? 0);
+            await supabase
+              .from('families')
+              .update({ is_active: true, max_members: maxMembers })
+              .eq('id', latest.id);
+            latest = await getFamily(user.id);
+          }
         }
       }
 

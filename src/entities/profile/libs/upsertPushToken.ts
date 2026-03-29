@@ -10,5 +10,10 @@ export async function upsertPushToken(userId: string, expoPushToken: string): Pr
     { onConflict: 'user_id' },
   );
 
-  if (error) throw error;
+  if (error) {
+    if (error.code === 'PGRST205') {
+      return;
+    }
+    throw error;
+  }
 }

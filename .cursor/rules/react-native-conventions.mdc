@@ -1,0 +1,46 @@
+---
+description: React Native and Expo coding conventions for all TSX files
+globs: "**/*.tsx"
+alwaysApply: false
+---
+
+# React Native Conventions
+
+## Styling
+
+- Use `StyleSheet.create` at the bottom of every file. No inline style objects except dynamic values (colors from theme, computed dimensions).
+- Theme colors come from `Colors[colorScheme === 'dark' ? 'dark' : 'light']` via `useColorScheme()`.
+- Spacing constants from `@shared/lib/theme`: `Spacing.xs` (4), `sm` (8), `md` (16), `lg` (24), `xl` (32), `xxl` (64).
+- No NativeWind, no Tailwind, no styled-components.
+
+## Components
+
+- Functional components only, `export default function ScreenName()` for screens.
+- Shared primitives live in `@shared/ui`: `Button`, `Card`, `Input`, `ScreenContent`.
+- `Button` supports variants: `primary`, `secondary`, `destructive`, `ghost`.
+- Sub-components within a screen file are fine (e.g. `WeekdayPicker` inside `CreateFamilyScreen.tsx`). Extract to `@shared/ui` or `@widgets` only when reused across 2+ screens.
+
+## Navigation
+
+- Expo Router with file-based routing in `src/app/`.
+- Route groups: `(auth)`, `(app)`, `(onboarding)`. Root-level routes for `paywall` and `invite/[code]`.
+- Tab layout in `src/application/layouts/TabLayout.tsx`. Stack layouts for `AppLayout`, `AuthLayout`, `OnboardingLayout`.
+- Use `useRouter()` for imperative navigation, `<Redirect>` for declarative (gate only).
+- Icons: `@expo/vector-icons` Ionicons (already bundled with Expo).
+
+## State Management
+
+- **Zustand** for client stores (family, period, purchase). Not persisted — empty on restart.
+- **AppGateContext** for auth-derived state (user, profile, family, membership, isOwner). Use `useAppGateContext()`.
+- **react-hook-form + zod** for forms with validation.
+
+## Data Fetching
+
+- Entity `libs/` functions call Supabase directly and return typed results.
+- No PostgREST FK hints for joins between tables linked through `auth.users` (e.g. `family_members` → `profiles`). Fetch separately and merge with a Map.
+- Dashboard uses `useAppGateContext().family` as the stable family reference, not the Zustand store.
+
+## Safe Area
+
+- Use `useSafeAreaInsets()` from `react-native-safe-area-context` for manual padding.
+- Tab screens: tab bar handles bottom safe area. Don't double-account with `insets.bottom`.

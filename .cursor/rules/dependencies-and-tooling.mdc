@@ -1,0 +1,48 @@
+---
+description: Allowed dependencies, package manager, and build tooling
+alwaysApply: true
+---
+
+# Dependencies and Tooling
+
+## Package Manager
+
+**NPM only.** No yarn, pnpm, or bun.
+
+## Approved Dependencies
+
+| Package | Purpose |
+|---------|---------|
+| `@supabase/supabase-js` | Supabase client (DB, auth, storage, realtime) |
+| `zod` | Env validation and form schemas |
+| `zustand` | In-memory client stores (family, period, purchase) |
+| `react-hook-form` + `@hookform/resolvers` | Forms with validation |
+| `@tanstack/react-query` | Server-state caching |
+| `expo-image-picker` | Receipt photo capture |
+| `expo-notifications` | Period-end push alerts |
+| `react-native-purchases` + `react-native-purchases-ui` | RevenueCat subscription management |
+| `@expo/vector-icons` | Ionicons for tab bar and UI icons |
+
+## Explicitly Not Used
+
+- **MMKV** — AsyncStorage is sufficient for our needs
+- **NativeWind / Tailwind** — StyleSheet.create only
+- **styled-components** — StyleSheet.create only
+- **@shopify/flash-list** — replaced with `.map()` due to ScrollView nesting issues
+
+## Build
+
+- **Expo SDK** with dev client (not Expo Go for native modules)
+- **EAS Build** for iOS/Android
+- Rebuild native client after adding packages with native modules: `npx expo run:ios`
+
+## Environment Variables
+
+- Prefixed with `EXPO_PUBLIC_` for client access
+- Validated with Zod in `@shared/lib/env.ts`
+- `.env.local` for local dev (not committed)
+
+Required vars:
+- `EXPO_PUBLIC_SUPABASE_URL`
+- `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+- `EXPO_PUBLIC_REVENUECAT_API_KEY` (optional)

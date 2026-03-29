@@ -1,0 +1,174 @@
+import { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useColorScheme,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAppGateContext } from '@app/providers/AppGateProvider';
+import { getFinishedPeriods, type Period } from '@entities/period';
+import { getPurchases } from '@entities/purchase';
+import { Card } from '@shared/ui';
+import { Colors, Spacing } from '@shared/lib/theme';
+import { formatDateRange, formatMoney } from '@shared/lib/format';
+
+type PeriodWithTotal = Period & { totalCents: number };
+
+export default function HistoryScreen() {
+  const router = useRouter();
+  const colorScheme = useColorScheme();
+  const theme = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
+  const insets = useSafeAreaInsets();
+  const { family } = useAppGateContext();
+
+  const [periods, setPeriods] = useState<PeriodWithTotal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadPeriods = useCallback(async () => {
+    if (!family) return;
+    try {
+      const finished = await getFinishedPeriods(family.id);
+      const withTotals = await Promise.all(
+        finished.map(async (p) => {
+          const purchases = await getPurchases(p.id);
+          const totalCents = purchases.reduce((sum, pur) => sum + pur.amount_cents, 0);
+          return { ...p, totalCents };
+        }),
+      );
+      setPeriods(withTotals);
+    } catch (err) {
+      console.warn('History load error:', err);
+    }
+  }, [family?.id]);
+
+  useEffect(() => {
+    loadPeriods().finally(() => setLoading(false));
+  }, [loadPeriods]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadPeriods();
+    setRefreshing(false);
+  }, [loadPeriods]);
+
+  if (loading) {
+    return (
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.accent} />
+      </View>
+    );
+  }
+
+  if (periods.length === 0) {
+    return (
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
+        <Text style={styles.emptyEmoji}>📊</Text>
+        <Text style={[styles.emptyTitle, { color: theme.text }]}>No history yet</Text>
+        <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
+          Completed periods will appear here
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.xl }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.textSecondary} />
+        }
+      >
+        <View style={styles.list}>
+          {periods.map((p) => {
+            const isResolved = p.status === 'resolved';
+
+            return (
+              <Pressable
+                key={p.id}
+                onPress={() =>
+                  router.push({
+                    pathname: '/(app)/period-report',
+                    params: {
+                      periodId: p.id,
+                      periodName: p.name,
+                      startsAt: p.starts_at,
+                      endsAt: p.ends_at,
+                      status: p.status,
+                    },
+                  })
+                }
+              >
+                <Card style={styles.periodCard}>
+                  <View style={styles.periodTop}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.periodName, { color: theme.text }]}>{p.name}</Text>
+                      <Text style={[styles.periodRange, { color: theme.textSecondary }]}>
+                        {formatDateRange(p.starts_at, p.ends_at)}
+                      </Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.badge,
+                        { backgroundColor: isResolved ? '#34C75920' : theme.backgroundSelected },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.badgeText,
+                          { color: isResolved ? '#34C759' : theme.textSecondary },
+                        ]}
+                      >
+                        {isResolved ? 'Settled' : 'Unsettled'}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.periodBottom}>
+                    <Text style={[styles.totalLabel, { color: theme.textSecondary }]}>
+                      Total spent
+                    </Text>
+                    <Text style={[styles.totalAmount, { color: theme.text }]}>
+                      {formatMoney(p.totalCents)}
+                    </Text>
+                  </View>
+                </Card>
+              </Pressable>
+            );
+          })}
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 },
+  emptyEmoji: { fontSize: 56, marginBottom: 16 },
+  emptyTitle: { fontSize: 24, fontWeight: '700', marginBottom: 8 },
+  emptySubtitle: { fontSize: 17, textAlign: 'center', lineHeight: 24 },
+  list: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, gap: Spacing.sm },
+  periodCard: { gap: 12 },
+  periodTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  periodName: { fontSize: 18, fontWeight: '600' },
+  periodRange: { fontSize: 14, marginTop: 2 },
+  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  badgeText: { fontSize: 13, fontWeight: '600' },
+  periodBottom: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(128,128,128,0.15)',
+  },
+  totalLabel: { fontSize: 13, fontWeight: '500', textTransform: 'uppercase' },
+  totalAmount: { fontSize: 18, fontWeight: '700' },
+});

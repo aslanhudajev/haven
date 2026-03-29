@@ -1,0 +1,1 @@
+export const REVENUECAT_ENABLED = !!process.env.EXPO_PUBLIC_REVENUECAT_API_KEY;

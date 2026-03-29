@@ -1,0 +1,25 @@
+-- Seed data for local development
+-- Uses the Supabase local auth system (Inbucket for email OTP).
+-- After running `supabase db reset`, sign in via the app with any email.
+-- The OTP will appear at http://127.0.0.1:54324 (Inbucket).
+
+-- No hardcoded users here — the handle_new_user trigger creates
+-- profiles automatically on signup. Use the app + Inbucket to create
+-- test accounts, then manually insert families/periods/purchases below
+-- if you want pre-populated data.
+
+-- Example: uncomment and adjust UUIDs after creating two test accounts.
+--
+-- INSERT INTO public.families (id, name, budget_cents, currency, owner_id) VALUES
+--   ('aaaaaaaa-0000-0000-0000-000000000001', 'Test Family', 500000, 'SEK', '<owner-user-uuid>');
+--
+-- INSERT INTO public.family_members (family_id, user_id, role) VALUES
+--   ('aaaaaaaa-0000-0000-0000-000000000001', '<owner-user-uuid>', 'owner'),
+--   ('aaaaaaaa-0000-0000-0000-000000000001', '<member-user-uuid>', 'member');
+--
+-- INSERT INTO public.periods (id, family_id, name, starts_at, ends_at) VALUES
+--   ('bbbbbbbb-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'March 2026', '2026-03-01', '2026-03-31');
+--
+-- INSERT INTO public.purchases (family_id, period_id, user_id, amount_cents, description) VALUES
+--   ('aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000001', '<owner-user-uuid>', 350000, 'Groceries at ICA'),
+--   ('aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000001', '<member-user-uuid>', 150000, 'Cleaning supplies');

@@ -1,0 +1,53 @@
+---
+description: TypeScript and general coding style conventions
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Coding Style
+
+## TypeScript
+
+- `strict: true` in tsconfig.
+- Prefer `type` over `interface` for data shapes. Use `interface` only for component props when extending.
+- No `any`. Use `unknown` and narrow, or explicit types.
+- Use barrel exports (`index.ts`) for every entity, screen, and widget. Consumers never import from deep paths.
+
+## Functions
+
+- One Supabase query/mutation per file in `entities/*/libs/`.
+- Named exports for lib functions: `export async function createFamily(...)`.
+- Default export for screen components: `export default function DashboardScreen()`.
+- No classes. Functional style throughout.
+
+## Error Handling
+
+- Supabase queries: destructure `{ data, error }`, throw on error.
+- Screens: wrap data loads in `try/catch`, `console.warn` the error, show user feedback via Alert or empty state.
+- Never silently swallow errors with empty catch blocks.
+
+## Naming
+
+- Files: `kebab-case.ts` for libs, `PascalCase.tsx` for components.
+- Variables/functions: `camelCase`.
+- Types: `PascalCase`.
+- Database columns: `snake_case`.
+- Zustand stores: `use{Entity}Store` with `create()`.
+
+## Imports
+
+- Use path aliases (`@entities/family`, `@shared/ui`, `@app/providers/...`).
+- Group imports: React/RN → Expo → external libs → internal aliases (app → entities → shared).
+- No relative imports that go up more than one level (prefer aliases).
+
+## Comments
+
+- No narration comments ("Import the module", "Create the function").
+- Comment only non-obvious intent, trade-offs, or constraints.
+- Inline JSDoc for exported utility functions that need usage context.
+
+## Formatting
+
+- Let Prettier/ESLint handle formatting (if configured).
+- Consistent 2-space indentation.
+- Trailing commas in multi-line objects/arrays.

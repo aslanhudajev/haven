@@ -1,0 +1,64 @@
+---
+description: App navigation flow, AppGate logic, and subscription handling
+alwaysApply: true
+---
+
+# App Flow and Gate Logic
+
+## Navigation Flow (normal user)
+
+1. **Welcome slides** — shown once, tracked by `fiftyfifty:welcomed` in AsyncStorage (legacy `haven:welcomed` is migrated on read)
+2. **Paywall** — RevenueCat paywall (anonymous purchase, no auth required)
+3. **Sign in** — Magic Link email OTP
+4. **Onboarding** — set display name → create family (sets period cadence, anchor day, creates first period)
+5. **Main app** — Dashboard (tabs: Home, History, Settings)
+
+## Navigation Flow (invited user)
+
+1. Tap deep link → `/invite/[code]` stores code in `fiftyfifty:pending_invite` (AsyncStorage; legacy `haven:pending_invite` migrated on read)
+2. Accept → skip paywall → sign in → auto-join family (gate handles this) → main app
+3. Deny → clear pending invite → enter normal flow from step 1
+
+## AppGateProvider
+
+`useAppGate()` in `src/application/providers/AppGateProvider/useAppGate.ts` determines `targetRoute`:
+
+| Check | Target |
+|-------|--------|
+| Not welcomed | `/(auth)/welcome` |
+| No subscription (owner flow) | `/paywall` |
+| Not authenticated | `/(auth)/login` |
+| Profile incomplete | `/(onboarding)/profile` |
+| Has pending invite | auto-joins, then falls through |
+| No family membership | `/(onboarding)/create-family` |
+| Family not active (member) | `/(onboarding)/sub-expired` |
+| All good | `/(app)/(tabs)` |
+
+`AppGateRedirect` handles navigation. It supports intra-group transitions (e.g. profile → create-family within `(onboarding)`).
+
+## Subscription Model
+
+- **RevenueCat** is the source of truth for subscriptions.
+- `configureRevenueCat()` runs on app start (anonymous).
+- `loginRevenueCat(userId)` runs after authentication to transfer purchases.
+- Supabase stores derived data only: `families.is_active` (boolean) and `families.max_members` (integer).
+- The `revenuecat-webhook` edge function syncs these on subscription events.
+- `getSubscriptionTier(productId)` maps RevenueCat product IDs to `maxMembers`.
+
+## Period System
+
+- Periods are configurable: cadence (`weekly` | `biweekly` | `monthly`) + anchor day.
+- For monthly: anchor day = day of month (1–28). For weekly/biweekly: anchor day = day of week (0=Sun–6=Sat).
+- First period is created during family creation.
+- Dashboard auto-rotates: if active period has expired, archives it and creates the next one.
+- Period statuses: `active` → `archived` → `resolved` (settled).
+- Resolution (marking as settled) is only allowed after a period is archived.
+- Pure date math lives in `@shared/lib/period/computePeriodDates.ts`.
+
+## Family Members
+
+- Owner creates the family and pays for the subscription.
+- Members join via deep-link invite.
+- `family_members.role` is `'owner'` or `'member'`.
+- Member limit is enforced by a DB trigger (`enforce_family_member_limit`).
+- Leaving a family re-enters onboarding (create new family, potentially subscribe).

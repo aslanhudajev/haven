@@ -1,0 +1,210 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
+
+export type Database = {
+  public: {
+    Tables: {
+      profiles: {
+        Row: {
+          id: string;
+          full_name: string | null;
+          avatar_url: string | null;
+          onboarding_completed: boolean;
+          updated_at: string | null;
+        };
+        Insert: {
+          id: string;
+          full_name?: string | null;
+          avatar_url?: string | null;
+          onboarding_completed?: boolean;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          full_name?: string | null;
+          avatar_url?: string | null;
+          onboarding_completed?: boolean;
+          updated_at?: string | null;
+        };
+        Relationships: [];
+      };
+      families: {
+        Row: {
+          id: string;
+          name: string;
+          budget_cents: number | null;
+          currency: string;
+          owner_id: string;
+          is_active: boolean;
+          max_members: number;
+          period_cadence: string;
+          period_anchor_day: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          budget_cents?: number | null;
+          currency?: string;
+          owner_id: string;
+          is_active?: boolean;
+          max_members?: number;
+          period_cadence?: string;
+          period_anchor_day?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          budget_cents?: number | null;
+          currency?: string;
+          owner_id?: string;
+          is_active?: boolean;
+          max_members?: number;
+          period_cadence?: string;
+          period_anchor_day?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      family_members: {
+        Row: {
+          id: string;
+          family_id: string;
+          user_id: string;
+          role: string;
+          joined_at: string;
+        };
+        Insert: {
+          id?: string;
+          family_id: string;
+          user_id: string;
+          role?: string;
+          joined_at?: string;
+        };
+        Update: {
+          id?: string;
+          family_id?: string;
+          user_id?: string;
+          role?: string;
+          joined_at?: string;
+        };
+        Relationships: [];
+      };
+      family_invites: {
+        Row: {
+          id: string;
+          family_id: string;
+          code: string;
+          created_by: string;
+          expires_at: string;
+          used_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          family_id: string;
+          code: string;
+          created_by: string;
+          expires_at: string;
+          used_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          family_id?: string;
+          code?: string;
+          created_by?: string;
+          expires_at?: string;
+          used_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      periods: {
+        Row: {
+          id: string;
+          family_id: string;
+          name: string;
+          starts_at: string;
+          ends_at: string;
+          status: string;
+          resolved_at: string | null;
+          resolved_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          family_id: string;
+          name: string;
+          starts_at: string;
+          ends_at: string;
+          status?: string;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          family_id?: string;
+          name?: string;
+          starts_at?: string;
+          ends_at?: string;
+          status?: string;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      purchases: {
+        Row: {
+          id: string;
+          family_id: string;
+          period_id: string;
+          user_id: string;
+          amount_cents: number;
+          description: string;
+          receipt_path: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          family_id: string;
+          period_id: string;
+          user_id: string;
+          amount_cents: number;
+          description: string;
+          receipt_path?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          family_id?: string;
+          period_id?: string;
+          user_id?: string;
+          amount_cents?: number;
+          description?: string;
+          receipt_path?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+    };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
+  };
+};
+
+type DefaultSchema = Database[Extract<keyof Database, 'public'>];
+
+export type Tables<
+  T extends keyof (DefaultSchema['Tables'] & DefaultSchema['Views']),
+> = (DefaultSchema['Tables'] & DefaultSchema['Views'])[T] extends { Row: infer R } ? R : never;

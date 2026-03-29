@@ -175,7 +175,7 @@ export default function AddPurchaseScreen() {
           name="amount"
           render={({ field: { onChange, onBlur, value } }) => (
             <Input
-              label="Amount (SEK)"
+              label={`Amount (${family.currency})`}
               placeholder="0"
               value={value}
               onChangeText={onChange}

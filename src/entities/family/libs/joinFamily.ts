@@ -21,106 +21,53 @@ export function isJoinFamilyError(e: unknown): e is JoinFamilyError {
   return e instanceof JoinFamilyError;
 }
 
-export async function joinFamily(inviteCode: string, userId: string) {
-  const { data: invite, error: lookupError } = await supabase
-    .from('family_invites')
-    .select('*')
-    .eq('code', inviteCode)
-    .maybeSingle();
-
-  if (lookupError) throw lookupError;
-
-  if (!invite) {
-    throw new JoinFamilyError('NOT_FOUND', 'This invite link is not valid.');
+function mapRedeemRpcError(message: string): JoinFamilyError {
+  const m = message || '';
+  if (m.includes('JOIN_FAMILY_NOT_FOUND')) {
+    return new JoinFamilyError('NOT_FOUND', 'This invite link is not valid.');
   }
-
-  if (invite.used_by) {
-    if (invite.used_by === userId) {
-      const { data: mem } = await supabase
-        .from('family_members')
-        .select('family_id')
-        .eq('user_id', userId)
-        .maybeSingle();
-      if (mem?.family_id === invite.family_id) {
-        return invite.family_id;
-      }
-    }
-    throw new JoinFamilyError('USED', 'This invite has already been used.');
+  if (m.includes('JOIN_FAMILY_USED')) {
+    return new JoinFamilyError('USED', 'This invite has already been used.');
   }
-
-  if (new Date(invite.expires_at) <= new Date()) {
-    throw new JoinFamilyError('EXPIRED', 'This invite has expired.');
+  if (m.includes('JOIN_FAMILY_EXPIRED')) {
+    return new JoinFamilyError('EXPIRED', 'This invite has expired.');
   }
-
-  const { data: existingMembership } = await supabase
-    .from('family_members')
-    .select('family_id')
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  if (existingMembership) {
-    if (existingMembership.family_id === invite.family_id) {
-      return invite.family_id;
-    }
-    throw new JoinFamilyError(
+  if (m.includes('JOIN_FAMILY_ALREADY_IN_FAMILY')) {
+    return new JoinFamilyError(
       'ALREADY_IN_FAMILY',
       'You already belong to a family. Leave it before joining another.',
     );
   }
-
-  const { data: fam, error: famError } = await supabase
-    .from('families')
-    .select('max_members')
-    .eq('id', invite.family_id)
-    .single();
-
-  if (famError || !fam) {
-    throw new JoinFamilyError('NOT_FOUND', 'This invite link is not valid.');
-  }
-
-  const { count, error: countError } = await supabase
-    .from('family_members')
-    .select('*', { count: 'exact', head: true })
-    .eq('family_id', invite.family_id);
-
-  if (countError) throw countError;
-
-  if ((count ?? 0) >= fam.max_members) {
-    throw new JoinFamilyError(
+  if (m.includes('JOIN_FAMILY_FAMILY_FULL')) {
+    return new JoinFamilyError(
       'FAMILY_FULL',
       'This family is full and cannot accept new members.',
     );
   }
+  if (m.includes('JOIN_FAMILY_UNAUTHORIZED')) {
+    return new JoinFamilyError('NOT_FOUND', 'Sign in to accept this invite.');
+  }
+  return new JoinFamilyError('NOT_FOUND', 'This invite link is not valid.');
+}
 
-  const { error: memberError } = await supabase.from('family_members').insert({
-    family_id: invite.family_id,
-    user_id: userId,
-    role: 'member',
-  });
-
-  if (memberError) {
-    if (memberError.code === '23505') {
-      throw new JoinFamilyError(
-        'ALREADY_IN_FAMILY',
-        'You already belong to a family. Leave it before joining another.',
-      );
-    }
-    if (memberError.message?.includes('member limit')) {
-      throw new JoinFamilyError(
-        'FAMILY_FULL',
-        'This family is full and cannot accept new members.',
-      );
-    }
-    throw memberError;
+/** Redeem an invite for the current session user (uses `auth.uid()` in the database). */
+export async function joinFamily(inviteCode: string) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    throw new JoinFamilyError('NOT_FOUND', 'Sign in to accept this invite.');
   }
 
-  const usedAt = new Date().toISOString();
-  const { error: inviteUpdateError } = await supabase
-    .from('family_invites')
-    .update({ used_by: userId, used_at: usedAt })
-    .eq('id', invite.id);
+  const { data, error } = await supabase.rpc('redeem_family_invite', {
+    p_code: inviteCode.trim(),
+  });
 
-  if (inviteUpdateError) throw inviteUpdateError;
+  if (error) {
+    throw mapRedeemRpcError(error.message ?? '');
+  }
 
-  return invite.family_id;
+  if (typeof data !== 'string') {
+    throw new JoinFamilyError('NOT_FOUND', 'This invite link is not valid.');
+  }
+
+  return data;
 }

@@ -36,7 +36,7 @@ export default function InviteScreen() {
 
     setJoining(true);
     try {
-      await joinFamily(code, user.id);
+      await joinFamily(code);
       await AsyncStorage.removeItem(APP_STORAGE_PENDING_INVITE_KEY);
       refresh();
       router.replace('/(app)/(tabs)');

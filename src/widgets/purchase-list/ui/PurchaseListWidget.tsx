@@ -5,17 +5,20 @@ import { formatMoney } from '@shared/lib/format';
 
 type Props = {
   currentUserId: string;
+  currency?: string;
   onPressPurchase?: (purchase: Purchase) => void;
 };
 
 function PurchaseRow({
   item,
   currentUserId,
+  currency,
   theme,
   onPress,
 }: {
   item: Purchase;
   currentUserId: string;
+  currency: string;
   theme: (typeof Colors)['dark'];
   onPress?: () => void;
 }) {
@@ -43,7 +46,7 @@ function PurchaseRow({
       </View>
       <View style={styles.rowRight}>
         <Text style={[styles.rowAmount, { color: theme.text }]}>
-          {formatMoney(item.amount_cents)}
+          {formatMoney(item.amount_cents, currency)}
         </Text>
         <Text style={[styles.rowTime, { color: theme.textSecondary }]}>{time}</Text>
       </View>
@@ -51,7 +54,11 @@ function PurchaseRow({
   );
 }
 
-export function PurchaseListWidget({ currentUserId, onPressPurchase }: Props) {
+export function PurchaseListWidget({
+  currentUserId,
+  currency = 'SEK',
+  onPressPurchase,
+}: Props) {
   const purchases = usePurchaseStore((s) => s.purchases);
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
@@ -76,6 +83,7 @@ export function PurchaseListWidget({ currentUserId, onPressPurchase }: Props) {
           <PurchaseRow
             item={item}
             currentUserId={currentUserId}
+            currency={currency}
             theme={theme}
             onPress={() => onPressPurchase?.(item)}
           />

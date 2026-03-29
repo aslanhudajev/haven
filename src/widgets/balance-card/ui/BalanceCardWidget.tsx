@@ -12,7 +12,12 @@ type Props = {
   currency?: string;
 };
 
-export function BalanceCardWidget({ purchases, members, budgetCents }: Props) {
+export function BalanceCardWidget({
+  purchases,
+  members,
+  budgetCents,
+  currency = 'SEK',
+}: Props) {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
 
@@ -41,7 +46,7 @@ export function BalanceCardWidget({ purchases, members, budgetCents }: Props) {
           <View style={styles.budgetCol}>
             <Text style={[styles.label, { color: theme.textSecondary }]}>Budget</Text>
             <Text style={[styles.budgetAmount, { color: theme.text }]}>
-              {formatMoney(budgetCents)}
+              {formatMoney(budgetCents, currency)}
             </Text>
           </View>
         )}
@@ -69,7 +74,7 @@ export function BalanceCardWidget({ purchases, members, budgetCents }: Props) {
                 {entry.name}
               </Text>
               <Text style={[styles.breakdownAmount, { color: theme.textSecondary }]}>
-                {formatMoney(entry.totalCents)}
+                {formatMoney(entry.totalCents, currency)}
               </Text>
             </View>
           ))}
@@ -83,7 +88,7 @@ export function BalanceCardWidget({ purchases, members, budgetCents }: Props) {
           </Text>
           {settlements.map((s: Settlement, i: number) => (
             <Text key={i} style={[styles.settlementRow, { color: theme.text }]}>
-              {s.from.name} → {s.to.name}: {formatMoney(s.amountCents)}
+              {s.from.name} → {s.to.name}: {formatMoney(s.amountCents, currency)}
             </Text>
           ))}
         </View>

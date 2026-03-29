@@ -161,13 +161,23 @@ export default function DashboardScreen() {
           purchases={purchases}
           members={members}
           budgetCents={family.budget_cents}
+          currency={family.currency}
         />
 
         <View style={styles.listHeader}>
           <Text style={[styles.listTitle, { color: theme.text }]}>Purchases</Text>
         </View>
 
-        <PurchaseListWidget currentUserId={user!.id} />
+        <PurchaseListWidget
+          currentUserId={user!.id}
+          currency={family.currency}
+          onPressPurchase={(p) =>
+            router.push({
+              pathname: '/(app)/edit-purchase',
+              params: { purchaseId: p.id },
+            })
+          }
+        />
       </ScrollView>
 
       <Pressable

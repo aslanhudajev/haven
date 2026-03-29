@@ -130,6 +130,8 @@ export default function CreateFamilyScreen() {
   };
 
   const isMonthly = cadence === 'monthly';
+  const budgetCadenceLabel =
+    cadence === 'weekly' ? 'Weekly' : cadence === 'biweekly' ? 'Biweekly' : 'Monthly';
 
   return (
     <View
@@ -172,7 +174,7 @@ export default function CreateFamilyScreen() {
           name="budget"
           render={({ field: { onChange, onBlur, value } }) => (
             <Input
-              label="Monthly budget (SEK, optional)"
+              label={`${budgetCadenceLabel} budget (SEK, optional)`}
               placeholder="e.g. 5000"
               value={value}
               onChangeText={onChange}

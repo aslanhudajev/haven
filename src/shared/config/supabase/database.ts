@@ -173,8 +173,9 @@ export type Database = {
           user_id: string;
           amount_cents: number;
           description: string;
-          receipt_path: string | null;
+          receipt_url: string | null;
           created_at: string;
+          updated_at: string;
         };
         Insert: {
           id?: string;
@@ -183,8 +184,9 @@ export type Database = {
           user_id: string;
           amount_cents: number;
           description: string;
-          receipt_path?: string | null;
+          receipt_url?: string | null;
           created_at?: string;
+          updated_at?: string;
         };
         Update: {
           id?: string;
@@ -193,14 +195,19 @@ export type Database = {
           user_id?: string;
           amount_cents?: number;
           description?: string;
-          receipt_path?: string | null;
+          receipt_url?: string | null;
           created_at?: string;
+          updated_at?: string;
         };
         Relationships: [];
       };
     };
     Views: Record<string, never>;
     Functions: {
+      redeem_family_invite: {
+        Args: { p_code: string };
+        Returns: string;
+      };
       transfer_family_ownership: {
         Args: { p_new_owner_user_id: string };
         Returns: undefined;

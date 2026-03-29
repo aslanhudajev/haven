@@ -107,10 +107,11 @@ enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
 file_size_limit = "50MiB"
 
+# Private: purchases.receipt_url holds object path; clients use createSignedUrl (owner-only via RLS).
 [storage.buckets.receipts]
 public = false
 file_size_limit = "10MiB"
-allowed_mime_types = ["image/png", "image/jpeg", "image/webp"]
+allowed_mime_types = ["image/png", "image/jpeg", "image/webp", "image/heic"]
 
 # Allow connections via S3 compatible clients
 [storage.s3_protocol]

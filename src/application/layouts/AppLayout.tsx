@@ -21,6 +21,10 @@ export default function AppLayout() {
         name="add-purchase"
         options={{ presentation: 'modal', headerTitle: 'Add Purchase' }}
       />
+      <Stack.Screen
+        name="edit-purchase"
+        options={{ presentation: 'modal', headerTitle: 'Purchase' }}
+      />
       <Stack.Screen name="family-settings" options={{ headerTitle: 'Family Settings' }} />
       <Stack.Screen name="period-report" options={{ headerTitle: 'Period Report' }} />
     </Stack>

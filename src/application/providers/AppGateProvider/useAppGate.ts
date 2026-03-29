@@ -71,7 +71,7 @@ export function useAppGate(user: SupabaseUser | null): AppGateData {
   const loadUserData = useCallback(async (userId: string, inviteCode: string | null) => {
     if (inviteCode) {
       try {
-        await joinFamily(inviteCode, userId);
+        await joinFamily(inviteCode);
         await AsyncStorage.removeItem(APP_STORAGE_PENDING_INVITE_KEY);
         setPendingInvite(null);
       } catch (err) {

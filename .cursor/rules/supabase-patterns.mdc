@@ -1,0 +1,88 @@
+---
+description: Supabase client usage, queries, migrations, and local dev workflow
+globs: "{src/entities/**/*.ts,supabase/**/*.sql,supabase/**/*.ts}"
+alwaysApply: false
+---
+
+# Supabase Patterns
+
+## Client Setup
+
+- Client lives in `@shared/config/supabase/supabase.ts`, exported from `@shared/config/supabase`.
+- Uses `supabaseStorage` (AsyncStorage adapter) for session persistence.
+- Auth method: Magic Link (email OTP) via `supabase.auth.signInWithOtp({ email })`.
+- Session listener: `supabase.auth.onAuthStateChange` in `AuthProvider`.
+
+## Query Patterns
+
+Each entity's `libs/` folder has one function per file:
+
+```typescript
+// entities/family/libs/getFamily.ts
+import { supabase } from '@shared/config/supabase';
+import type { Family } from '../model/types';
+
+export async function getFamily(familyId: string): Promise<Family> {
+  const { data, error } = await supabase
+    .from('families')
+    .select('*')
+    .eq('id', familyId)
+    .single();
+  if (error) throw error;
+  return data as Family;
+}
+```
+
+### Important: No FK-hint joins to profiles
+
+PostgREST cannot resolve joins between `family_members` / `purchases` and `profiles` because the FK goes through `auth.users`, not directly. Always fetch profiles separately:
+
+```typescript
+const { data: members } = await supabase
+  .from('family_members')
+  .select('*')
+  .eq('family_id', familyId);
+const userIds = members.map(m => m.user_id);
+const { data: profiles } = await supabase
+  .from('profiles')
+  .select('*')
+  .in('id', userIds);
+const profileMap = new Map(profiles.map(p => [p.id, p]));
+// merge: members.map(m => ({ ...m, profile: profileMap.get(m.user_id) }))
+```
+
+## Database Schema (core tables)
+
+- `profiles` (id = auth.uid, full_name, avatar_url, onboarding_completed)
+- `families` (id, name, owner_id, currency, budget_cents, is_active, max_members, period_cadence, period_anchor_day)
+- `family_members` (family_id, user_id, role: 'owner'|'member')
+- `family_invites` (id, family_id, code, invited_by, used_by, used_at)
+- `periods` (id, family_id, name, starts_at, ends_at, status: 'active'|'archived'|'resolved', resolved_at, resolved_by)
+- `purchases` (id, period_id, user_id, amount_cents, description, receipt_url, created_at)
+- `receipts` storage bucket with RLS
+
+## Database Types
+
+- Generated types live in `@shared/config/supabase/database.ts`.
+- After creating a migration, regenerate with: `supabase gen types typescript --local > src/shared/config/supabase/database.ts`
+- Entity types in `model/types.ts` should stay aligned with the generated types but are hand-written for readability.
+
+## Local Dev Workflow
+
+1. `supabase start` — spin up local Supabase
+2. `supabase migration new MIGRATION_NAME` — creates empty `.sql` file in `supabase/migrations/`
+3. Edit the migration file
+4. `supabase db reset` — applies all migrations from scratch
+5. `supabase gen types typescript --local > src/shared/config/supabase/database.ts` — regenerate types
+6. When ready for production: `supabase db push`
+
+## Edge Functions
+
+- Located in `supabase/functions/`. Each function has `index.ts`, `deno.json`, `.npmrc`.
+- Runtime: Deno. Use `https://esm.sh/` imports for npm packages.
+- The `revenuecat-webhook` function syncs subscription state to the `families` table.
+
+## Triggers
+
+- `handle_new_user` — auto-creates a profile row on `auth.users` insert.
+- `enforce_family_member_limit` — BEFORE INSERT on `family_members`, checks count against `families.max_members`.

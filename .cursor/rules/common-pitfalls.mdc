@@ -1,0 +1,38 @@
+---
+description: Known pitfalls and gotchas discovered during development
+alwaysApply: true
+---
+
+# Common Pitfalls
+
+## Zustand Stores Reset on Restart
+
+Stores are in-memory only. The dashboard and other screens must fetch fresh data from Supabase on mount. Never assume the store already has data.
+
+## Stale Closures in Dashboard
+
+When `loadData` depends on `family` (which starts as null and becomes an object), `useCallback` creates a new reference each time, causing `useEffect` to re-fire. Use `useAppGateContext().family` (stable after gate resolves) and a `loadedRef` to prevent double execution.
+
+## PostgREST Join Limitations
+
+Supabase PostgREST cannot resolve foreign key joins between tables linked through `auth.users` (e.g. `family_members.user_id` → `auth.users.id` ← `profiles.id`). Do NOT use `.select('*, profiles(*)')` on these tables. Fetch separately and merge with a Map.
+
+## FlashList Inside ScrollView
+
+`@shopify/flash-list` does not render correctly when nested inside a `ScrollView` (items get clipped, don't appear). Use `.map()` with plain `View`s instead. FlatList has the same issue.
+
+## Tab Bar Safe Area
+
+The tab bar already accounts for bottom safe area. When positioning absolute elements (like a FAB) inside a tab screen, use a small fixed `bottom` value (e.g. `16`), not `insets.bottom + X` which double-accounts.
+
+## AppGateRedirect Intra-Group Navigation
+
+`AppGateRedirect` uses `router.replace`. When the target changes within the same route group (e.g. from `/(onboarding)/profile` to `/(onboarding)/create-family`), a plain `replace` to the group root won't trigger re-navigation. The redirect must detect intra-group changes and `replace` to the specific sub-route.
+
+## Native Module Errors in Dev Builds
+
+"Cannot find native module" errors usually mean the native build is stale. Fix: `npx expo run:ios` to rebuild. Do NOT add lazy-loading workarounds for this.
+
+## Period Auto-Rotation Race Condition
+
+Dashboard `loadData` checks if the active period has expired and auto-rotates. If `loadData` runs twice (e.g. from `useEffect` re-firing), it can archive a period and create a new empty one, making it look like data was lost. Guard with a `loadedRef` or similar mechanism.

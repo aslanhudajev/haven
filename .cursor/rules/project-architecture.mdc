@@ -1,0 +1,70 @@
+---
+description: FiftyFifty (Haven) project architecture and directory conventions
+alwaysApply: true
+---
+
+# Project Architecture — Feature-Sliced Design
+
+## Directory Structure
+
+```
+src/
+  app/              # Expo Router routes (thin re-exports only)
+  application/      # App shell: layouts, providers, app-level libs
+  entities/         # Domain slices: family, period, purchase, profile, auth, subscription
+  screens/          # Full-page screens (one per route)
+  widgets/          # Reusable multi-component UI blocks
+  shared/           # Cross-cutting: config, lib, ui, storage
+```
+
+## Path Aliases (tsconfig)
+
+`@app/*`, `@screens/*`, `@widgets/*`, `@entities/*`, `@shared/*`, `@features/*`, `@assets/*`
+
+## Entity Structure
+
+Each entity follows `libs/` + `model/` + `index.ts`:
+
+```
+entities/family/
+  libs/getFamily.ts, getMembers.ts, createFamily.ts, updateFamily.ts, ...
+  model/types.ts, family-store.ts
+  index.ts          # Barrel — every public export goes here
+```
+
+- `libs/` — Supabase queries and mutations (one function per file)
+- `model/types.ts` — TypeScript types for the domain object
+- `model/*-store.ts` — Zustand store (in-memory, not persisted)
+- `index.ts` — Re-exports everything. Consumers import from `@entities/family`, never deep paths.
+
+## Screen Structure
+
+```
+screens/dashboard/
+  ui/DashboardScreen.tsx
+  index.ts           # export { default } from './ui/DashboardScreen'
+```
+
+## Route Files (src/app/)
+
+Route files are thin re-exports. No logic, no UI:
+
+```tsx
+// src/app/(app)/(tabs)/history.tsx
+export { default } from '@screens/history';
+```
+
+## Shared Layer
+
+- `shared/ui/` — Primitive components: Button, Card, Input, ScreenContent
+- `shared/lib/` — Pure utilities: env, format, theme, period math, settlement calc
+- `shared/config/` — Supabase client, RevenueCat config
+- `shared/storage/` — AsyncStorage adapters (e.g. supabase-storage)
+
+## Key Rules
+
+- Zustand stores are in-memory only — never assume data survives restart
+- The `AppGateProvider` is the source of truth for auth state, profile, and family on app start
+- Dashboard and other screens should read `family` from `useAppGateContext()`, not from the Zustand store
+- Supabase session persists via AsyncStorage (supabaseStorage adapter)
+- `fiftyfifty:welcomed` and `fiftyfifty:pending_invite` are AsyncStorage keys for onboarding state (`@shared/lib/storage/appStorageKeys`); legacy `haven:*` keys are migrated once on read

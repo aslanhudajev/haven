@@ -1,20 +1,21 @@
 {
   "expo": {
-    "name": "haven",
-    "slug": "haven",
+    "name": "FiftyFifty",
+    "slug": "fiftyfifty",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "haven",
+    "scheme": "fiftyfifty",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.hudsonsolutions.haven",
+      "bundleIdentifier": "com.hudsonsolutions.fiftyfifty",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
+      "package": "com.hudsonsolutions.fiftyfifty",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -39,6 +40,13 @@
           }
         }
       ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#208AEF"
+        }
+      ],
       "expo-sqlite"
     ],
     "experiments": {
@@ -48,7 +56,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "b616f56b-e705-489a-915f-bd0b9271eece"
+        "projectId": "046d24a2-d167-42a9-b31e-97c88f638cf9"
       }
     },
     "owner": "aslanhud-org"

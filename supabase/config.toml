@@ -2,7 +2,7 @@
 # https://supabase.com/docs/guides/local-development/cli/config
 # A string used to distinguish different Supabase projects on the same host. Defaults to the
 # working directory name when running `supabase init`.
-project_id = "haven"
+project_id = "fiftyfifty"
 
 [api]
 enabled = true
@@ -107,12 +107,11 @@ enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
 file_size_limit = "50MiB"
 
-# Uncomment to configure local storage buckets
-# [storage.buckets.images]
-# public = false
-# file_size_limit = "50MiB"
-# allowed_mime_types = ["image/png", "image/jpeg"]
-# objects_path = "./images"
+# Private: purchases.receipt_url holds object path; clients use createSignedUrl (owner-only via RLS).
+[storage.buckets.receipts]
+public = false
+file_size_limit = "10MiB"
+allowed_mime_types = ["image/png", "image/jpeg", "image/webp", "image/heic"]
 
 # Allow connections via S3 compatible clients
 [storage.s3_protocol]
@@ -149,7 +148,7 @@ enabled = true
 # in emails.
 site_url = "http://127.0.0.1:3000"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["https://127.0.0.1:3000"]
+additional_redirect_urls = ["https://127.0.0.1:3000", "fiftyfifty://", "haven://", "exp://127.0.0.1:8081"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to the local API URL (http://127.0.0.1:<port>/auth/v1).
@@ -382,3 +381,23 @@ s3_region = "env(S3_REGION)"
 s3_access_key = "env(S3_ACCESS_KEY)"
 # Configures AWS_SECRET_ACCESS_KEY for S3 bucket
 s3_secret_key = "env(S3_SECRET_KEY)"
+
+[functions.revenuecat-webhook]
+enabled = true
+verify_jwt = false
+import_map = "./functions/revenuecat-webhook/deno.json"
+entrypoint = "./functions/revenuecat-webhook/index.ts"
+
+# JWT is verified inside the function via supabase.auth.getUser(). Built-in verify_jwt can
+# fail on some local CLI/runtime builds (ES256 CryptoKey vs Uint8Array) before user code runs.
+[functions.sync-revenuecat-subscription]
+enabled = true
+verify_jwt = false
+import_map = "./functions/sync-revenuecat-subscription/deno.json"
+entrypoint = "./functions/sync-revenuecat-subscription/index.ts"
+
+[functions.notify-period-end-push]
+enabled = true
+verify_jwt = false
+import_map = "./functions/notify-period-end-push/deno.json"
+entrypoint = "./functions/notify-period-end-push/index.ts"

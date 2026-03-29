@@ -17,6 +17,11 @@ import { useAppGateContext } from '@app/providers/AppGateProvider';
 import { useAuth } from '@app/providers/AuthProvider';
 
 const ACCENT = '#208AEF';
+const PAYWALL_LOG = '[Haven:paywall]';
+
+function pwLog(...args: unknown[]) {
+  if (__DEV__) console.log(PAYWALL_LOG, ...args);
+}
 
 export default function PaywallScreen() {
   const colorScheme = useColorScheme();
@@ -30,21 +35,29 @@ export default function PaywallScreen() {
   const isRenewal = !!user && !!family && isOwner && !family.is_active;
 
   const syncAfterPurchase = useCallback(async () => {
+    pwLog('syncAfterPurchase start', { userId: user?.id ?? null });
     try {
       if (REVENUECAT_ENABLED) {
         const Purchases = (await import('react-native-purchases')).default;
         try {
-          await Purchases.syncPurchasesForResult();
-        } catch {
-          // still try downstream checks
+          const syncRes = await Purchases.syncPurchasesForResult();
+          pwLog('syncPurchasesForResult ok', {
+            activeKeys: Object.keys(syncRes.customerInfo.entitlements.active),
+          });
+        } catch (e) {
+          pwLog('syncPurchasesForResult failed (continuing)', e);
         }
       }
 
-      if (!user) return;
+      if (!user) {
+        pwLog('syncAfterPurchase: no user, stop');
+        return;
+      }
 
       if (REVENUECAT_ENABLED) {
         await syncRevenueCatSubscription();
         const active = await checkSubscription();
+        pwLog('after edge sync: checkSubscription', { active });
         if (active) {
           const { data: owned } = await supabase
             .from('families')
@@ -59,10 +72,11 @@ export default function PaywallScreen() {
               .eq('family_id', owned.id);
             if (!countErr) {
               const maxMembers = resolveMaxMembersForTier(tier.maxMembers, count ?? 0);
-              await supabase
+              const { error: upErr } = await supabase
                 .from('families')
                 .update({ is_active: true, max_members: maxMembers })
                 .eq('id', owned.id);
+              pwLog('Supabase families update', { familyId: owned.id, maxMembers, error: upErr?.message ?? null });
             }
           }
         }
@@ -88,8 +102,9 @@ export default function PaywallScreen() {
         }
       }
     } catch (err) {
-      console.warn('Post-purchase sync failed:', err);
+      console.warn(PAYWALL_LOG, 'syncAfterPurchase failed:', err);
     }
+    pwLog('syncAfterPurchase end');
   }, [user]);
 
   const presentPaywall = useCallback(async () => {
@@ -97,19 +112,24 @@ export default function PaywallScreen() {
     try {
       const RevenueCatUI = (await import('react-native-purchases-ui')).default;
       const { PAYWALL_RESULT } = await import('react-native-purchases-ui');
+      pwLog('presentPaywallIfNeeded start', { requiredEntitlementIdentifier: REQUIRED_ENTITLEMENT_ID });
       const result = await RevenueCatUI.presentPaywallIfNeeded({
         requiredEntitlementIdentifier: REQUIRED_ENTITLEMENT_ID,
       });
+      pwLog('presentPaywallIfNeeded result', { result: String(result) });
       if (
         result === PAYWALL_RESULT.PURCHASED ||
         result === PAYWALL_RESULT.RESTORED ||
         result === PAYWALL_RESULT.NOT_PRESENTED
       ) {
         await syncAfterPurchase();
+        pwLog('calling gate refresh() after paywall result');
         refresh();
+      } else {
+        pwLog('skipped syncAfterPurchase (dismissed / error result)');
       }
-    } catch {
-      // RevenueCat UI not available
+    } catch (e) {
+      pwLog('presentPaywall error', e);
     }
   }, [syncAfterPurchase, refresh]);
 
@@ -125,11 +145,15 @@ export default function PaywallScreen() {
     setRestoring(true);
     try {
       const Purchases = (await import('react-native-purchases')).default;
-      await Purchases.restorePurchases();
+      pwLog('restorePurchases start');
+      const info = await Purchases.restorePurchases();
+      pwLog('restorePurchases done', {
+        activeKeys: Object.keys(info.entitlements.active),
+      });
       await syncAfterPurchase();
       refresh();
-    } catch {
-      // restore not available
+    } catch (e) {
+      pwLog('restorePurchases error', e);
     } finally {
       setRestoring(false);
     }

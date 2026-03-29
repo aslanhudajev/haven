@@ -19,6 +19,12 @@ import {
 } from '@shared/lib/storage';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
+const GATE_LOG = '[Haven:gate]';
+
+function gateLog(...args: unknown[]) {
+  if (__DEV__) console.log(GATE_LOG, ...args);
+}
+
 export type AppGateTarget =
   | '/(auth)/welcome'
   | '/paywall'
@@ -86,10 +92,19 @@ async function resolveUserData(
     memberRow = m as FamilyMember | null;
 
     if (REVENUECAT_ENABLED && memberRow?.role === 'owner') {
+      gateLog('resolveUserData: owner → syncRevenueCatSubscription + refresh family', {
+        familyId: nextFamily.id,
+        is_active_before_sync: nextFamily.is_active,
+      });
       await syncRevenueCatSubscription();
       nextFamily = await getFamily(userId);
+      gateLog('resolveUserData: after edge sync', {
+        familyId: nextFamily?.id,
+        is_active: nextFamily?.is_active,
+      });
       if (nextFamily && !nextFamily.is_active) {
         const rcActive = await checkSubscription();
+        gateLog('resolveUserData: family still inactive; SDK checkSubscription', { rcActive });
         if (rcActive) {
           const tier = await getSubscriptionTier();
           const { count, error: countErr } = await supabase
@@ -102,6 +117,10 @@ async function resolveUserData(
               .from('families')
               .update({ is_active: true, max_members: maxMembers })
               .eq('id', nextFamily.id);
+            gateLog('resolveUserData: client reconciliation patch family', {
+              maxMembers,
+              patchErr: patchErr?.message ?? null,
+            });
             if (!patchErr) {
               nextFamily = await getFamily(userId);
             }
@@ -132,6 +151,7 @@ export function useAppGate(user: SupabaseUser | null): AppGateData {
 
   const evaluate = useCallback(async () => {
     setIsLoading(true);
+    gateLog('evaluate start', { userId: user?.id ?? null });
     try {
       const { welcomed: w, inviteCode } = await readLocalFlags();
       const hasSubAnon = await readHasSubscription();
@@ -165,6 +185,26 @@ export function useAppGate(user: SupabaseUser | null): AppGateData {
       setProfile(nextProfile);
       setFamily(nextFamily);
       setMembership(nextMembership);
+
+      const target = computeTarget({
+        welcomed: w,
+        hasSubscription: nextHasSub,
+        user,
+        profile: nextProfile,
+        family: nextFamily,
+        isOwner: nextMembership?.role === 'owner',
+        pendingInvite: nextPending,
+      });
+      gateLog('evaluate done', {
+        userId: user?.id ?? null,
+        welcomed: w,
+        hasSubscriptionSdk: nextHasSub,
+        familyId: nextFamily?.id ?? null,
+        familyIsActive: nextFamily?.is_active ?? null,
+        isOwner: nextMembership?.role === 'owner',
+        pendingInvite: nextPending,
+        targetRoute: target,
+      });
     } catch (err) {
       console.warn('AppGate evaluate error:', err);
       try {

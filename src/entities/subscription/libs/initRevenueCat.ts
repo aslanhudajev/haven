@@ -27,12 +27,50 @@ const DEFAULT_MAX_MEMBERS = 2;
 
 let configured = false;
 
+const LOG = '[Haven:RC]';
+
+function rcLog(...args: unknown[]) {
+  if (__DEV__) console.log(LOG, ...args);
+}
+
 async function getPurchases() {
   return (await import('react-native-purchases')).default;
 }
 
+function summarizeEntitlements(info: {
+  entitlements: {
+    active: Record<string, { expirationDate?: string | null; productIdentifier?: string }>;
+    all: Record<string, { isActive?: boolean; expirationDate?: string | null; productIdentifier?: string }>;
+  };
+}) {
+  const { active, all } = info.entitlements;
+  const allSummary: Record<string, { isActive?: boolean; expirationDate?: string | null; productIdentifier?: string | null }> =
+    {};
+  for (const key of Object.keys(all)) {
+    const e = all[key];
+    allSummary[key] = {
+      isActive: e.isActive,
+      expirationDate: e.expirationDate ?? null,
+      productIdentifier: e.productIdentifier ?? null,
+    };
+  }
+  return {
+    requiredEntitlementId: REQUIRED_ENTITLEMENT_ID,
+    activeEntitlementKeys: Object.keys(active),
+    requiredInActive: !!active[REQUIRED_ENTITLEMENT_ID],
+    allEntitlements: allSummary,
+  };
+}
+
 export async function configureRevenueCat() {
-  if (!REVENUECAT_KEY || configured) return;
+  if (!REVENUECAT_KEY) {
+    rcLog('configureRevenueCat skipped (no EXPO_PUBLIC_REVENUECAT_API_KEY)');
+    return;
+  }
+  if (configured) {
+    rcLog('configureRevenueCat skipped (already configured)');
+    return;
+  }
   try {
     const RNP = await import('react-native-purchases');
     const Purchases = RNP.default;
@@ -41,13 +79,15 @@ export async function configureRevenueCat() {
     }
     Purchases.configure({ apiKey: REVENUECAT_KEY });
     configured = true;
+    rcLog('configureRevenueCat ok');
   } catch (err) {
     const msg = String(err instanceof Error ? err.message : err);
     if (/already configured|singleton/i.test(msg)) {
       configured = true;
+      rcLog('configureRevenueCat treated as ok (already configured)', msg);
       return;
     }
-    console.warn('RevenueCat configure failed:', err);
+    console.warn(LOG, 'configureRevenueCat failed:', err);
   }
 }
 
@@ -56,9 +96,14 @@ export async function loginRevenueCat(userId: string) {
   if (!configured) await configureRevenueCat();
   try {
     const Purchases = await getPurchases();
-    await Purchases.logIn(userId);
+    rcLog('loginRevenueCat calling logIn', { userId });
+    const { customerInfo } = await Purchases.logIn(userId);
+    rcLog('loginRevenueCat done', {
+      userId,
+      ...summarizeEntitlements({ entitlements: customerInfo.entitlements }),
+    });
   } catch (err) {
-    console.warn('RevenueCat logIn failed:', err);
+    console.warn(LOG, 'loginRevenueCat failed:', err);
   }
 }
 
@@ -68,8 +113,16 @@ export async function checkSubscription(): Promise<boolean> {
   try {
     const Purchases = await getPurchases();
     const info = await Purchases.getCustomerInfo();
-    return !!info.entitlements.active[REQUIRED_ENTITLEMENT_ID];
-  } catch {
+    const ok = !!info.entitlements.active[REQUIRED_ENTITLEMENT_ID];
+    rcLog('checkSubscription', {
+      result: ok,
+      originalAppUserId: info.originalAppUserId,
+      firstSeen: info.firstSeen,
+      ...summarizeEntitlements({ entitlements: info.entitlements }),
+    });
+    return ok;
+  } catch (e) {
+    rcLog('checkSubscription error, returning false', e);
     return false;
   }
 }
@@ -85,12 +138,17 @@ export async function getSubscriptionTier(): Promise<{
     const info = await Purchases.getCustomerInfo();
     const active = info.entitlements.active;
     const entitlement = active[REQUIRED_ENTITLEMENT_ID];
-    if (!entitlement) return { maxMembers: DEFAULT_MAX_MEMBERS, productId: null };
+    if (!entitlement) {
+      rcLog('getSubscriptionTier: required entitlement not in active', summarizeEntitlements({ entitlements: info.entitlements }));
+      return { maxMembers: DEFAULT_MAX_MEMBERS, productId: null };
+    }
 
     const productId = entitlement.productIdentifier;
     const maxMembers = TIER_MAX_MEMBERS[productId] ?? DEFAULT_MAX_MEMBERS;
+    rcLog('getSubscriptionTier', { maxMembers, productId, expirationDate: entitlement.expirationDate });
     return { maxMembers, productId };
-  } catch {
+  } catch (e) {
+    rcLog('getSubscriptionTier error', e);
     return { maxMembers: DEFAULT_MAX_MEMBERS, productId: null };
   }
 }

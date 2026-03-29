@@ -18,11 +18,42 @@ const DEFAULT_MAX_MEMBERS = 2;
 /** Must match RevenueCat dashboard entitlement identifier (Product catalog → Entitlements). */
 const ENTITLEMENT_ID = 'FiftyFifty Pro';
 
-function isEntitlementActive(expiresDate: string | null | undefined): boolean {
-  if (expiresDate == null || expiresDate === '') return true;
+function evaluateEntitlementExpiry(expiresDate: string | null | undefined): {
+  active: boolean;
+  reason: string;
+  nowIso: string;
+  expiresIso: string | null;
+  msDelta: number | null;
+} {
+  const now = Date.now();
+  const nowIso = new Date(now).toISOString();
+  if (expiresDate == null || expiresDate === '') {
+    return {
+      active: true,
+      reason: 'no_expires_date_treated_as_non_expiring',
+      nowIso,
+      expiresIso: null,
+      msDelta: null,
+    };
+  }
   const t = Date.parse(expiresDate);
-  if (Number.isNaN(t)) return false;
-  return t > Date.now();
+  if (Number.isNaN(t)) {
+    return {
+      active: false,
+      reason: 'expires_date_unparseable',
+      nowIso,
+      expiresIso: expiresDate,
+      msDelta: null,
+    };
+  }
+  const active = t > now;
+  return {
+    active,
+    reason: active ? 'not_yet_expired' : 'expired_per_expires_date',
+    nowIso,
+    expiresIso: new Date(t).toISOString(),
+    msDelta: t - now,
+  };
 }
 
 Deno.serve(async (req) => {
@@ -131,14 +162,18 @@ Deno.serve(async (req) => {
 
     const ent = body.subscriber?.entitlements?.[ENTITLEMENT_ID];
     if (ent) {
-      const active = isEntitlementActive(ent.expires_date ?? null);
-      console.log('[sync-revenuecat] Matched entitlement', {
+      const evalResult = evaluateEntitlementExpiry(ent.expires_date ?? null);
+      console.log('[sync-revenuecat] Matched entitlement (V1 REST)', {
         identifier: ENTITLEMENT_ID,
-        expires_date: ent.expires_date ?? null,
+        raw_expires_date: ent.expires_date ?? null,
         product_identifier: ent.product_identifier ?? null,
-        treatedAsActive: active,
+        serverNowIso: evalResult.nowIso,
+        parsedExpiryIso: evalResult.expiresIso,
+        msUntilExpiry: evalResult.msDelta,
+        treatedAsActive: evalResult.active,
+        decisionReason: evalResult.reason,
       });
-      if (active) {
+      if (evalResult.active) {
         isActive = true;
         productId = ent.product_identifier ?? null;
       }
@@ -150,7 +185,12 @@ Deno.serve(async (req) => {
     }
   }
 
-  console.log('[sync-revenuecat] Resolved', { isActive, productId, families: ownedFamilies.length });
+  console.log('[sync-revenuecat] Resolved', {
+    isActive,
+    productId,
+    families: ownedFamilies.length,
+    dbEffect: isActive ? 'will_set_families_is_active_true' : 'will_set_families_is_active_false',
+  });
 
   const tierMax = productId ? (TIER_MAX_MEMBERS[productId] ?? DEFAULT_MAX_MEMBERS) : DEFAULT_MAX_MEMBERS;
 
@@ -173,6 +213,7 @@ Deno.serve(async (req) => {
         .eq('id', row.id);
 
       if (uErr) console.error('Family update:', uErr);
+      else console.log('[sync-revenuecat] DB updated family', { familyId: row.id, is_active: true, maxMembers });
     } else {
       const { error: uErr } = await admin
         .from('families')
@@ -180,6 +221,7 @@ Deno.serve(async (req) => {
         .eq('id', row.id);
 
       if (uErr) console.error('Family update:', uErr);
+      else console.log('[sync-revenuecat] DB updated family', { familyId: row.id, is_active: false });
     }
   }
 

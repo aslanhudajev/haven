@@ -1,26 +1,42 @@
 const months = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
 const monthsShort = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
 
 /**
  * Monthly: "March 2026"
  * Weekly/biweekly: "25 Mar – 7 Apr"
  */
-export function formatPeriodName(
-  start: Date,
-  end?: Date,
-): string {
+export function formatPeriodName(start: Date, end?: Date): string {
   if (!end) return `${months[start.getMonth()]} ${start.getFullYear()}`;
 
   const sameMonth =
-    start.getMonth() === end.getMonth() &&
-    start.getFullYear() === end.getFullYear();
+    start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
 
   if (sameMonth) {
     return `${start.getDate()} – ${end.getDate()} ${monthsShort[start.getMonth()]} ${start.getFullYear()}`;

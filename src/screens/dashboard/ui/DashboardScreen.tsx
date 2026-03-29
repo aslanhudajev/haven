@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -9,19 +10,18 @@ import {
   View,
   useColorScheme,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '@app/providers/AuthProvider';
-import { useAppGateContext } from '@app/providers/AppGateProvider';
+import { BalanceCardWidget } from '@widgets/balance-card';
+import { PurchaseListWidget } from '@widgets/purchase-list';
 import { useFamilyStore, getFamily, getMembers } from '@entities/family';
 import { usePeriodStore, ensureActivePeriodForDashboard } from '@entities/period';
 import { usePurchaseStore, getPurchases } from '@entities/purchase';
-import { BalanceCardWidget } from '@widgets/balance-card';
-import { PurchaseListWidget } from '@widgets/purchase-list';
-import { Colors, Spacing } from '@shared/lib/theme';
+import { runSerialized } from '@shared/lib/async';
+import { periodLog } from '@shared/lib/debug';
 import { formatDateRange } from '@shared/lib/format';
-import { runSerialized } from '@shared/lib/async/runSerialized';
-import { periodLog } from '@shared/lib/debug/periodLog';
+import { Colors, Spacing } from '@shared/lib/theme';
+import { useAppGateContext } from '@app/providers/AppGateProvider';
+import { useAuth } from '@app/providers/AuthProvider';
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -84,7 +84,9 @@ export default function DashboardScreen() {
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [user?.id, family?.id]);
 
   const onRefresh = useCallback(async () => {
@@ -124,7 +126,9 @@ export default function DashboardScreen() {
 
   if (!family) {
     return (
-      <View style={[styles.centered, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+      <View
+        style={[styles.centered, { backgroundColor: theme.background, paddingTop: insets.top }]}
+      >
         <Text style={styles.emoji}>👨‍👩‍👧‍👦</Text>
         <Text style={[styles.title, { color: theme.text }]}>No family yet</Text>
         <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
@@ -145,7 +149,11 @@ export default function DashboardScreen() {
       <ScrollView
         contentContainerStyle={{ paddingTop: insets.top + Spacing.md, paddingBottom: 100 }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.textSecondary} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.textSecondary}
+          />
         }
       >
         <View style={styles.header}>
@@ -196,7 +204,13 @@ const styles = StyleSheet.create({
   emoji: { fontSize: 56, marginBottom: 16 },
   title: { fontSize: 28, fontWeight: '700', marginBottom: 8 },
   subtitle: { fontSize: 17, textAlign: 'center', lineHeight: 24, marginBottom: 24 },
-  createBtn: { height: 48, paddingHorizontal: 32, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  createBtn: {
+    height: 48,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   createBtnText: { color: '#fff', fontSize: 17, fontWeight: '600' },
   header: { paddingHorizontal: Spacing.lg, marginBottom: Spacing.lg },
   familyName: { fontSize: 28, fontWeight: '700', letterSpacing: -0.5 },

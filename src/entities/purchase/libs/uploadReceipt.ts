@@ -1,5 +1,5 @@
-import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
+import { Platform } from 'react-native';
 import { supabase } from '@shared/config/supabase';
 
 /** Valid HTTP Content-Type; `image/jpg` is not a real MIME type and breaks previews. */

@@ -1,13 +1,14 @@
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { useAppGateContext } from '@app/providers/AppGateProvider';
-import { useAuth } from '@app/providers/AuthProvider';
 import { logout } from '@entities/auth';
 import { leaveFamily } from '@entities/family';
-import { Button } from '@shared/ui';
+import { getErrorMessage } from '@shared/lib/errors';
 import { Colors, Spacing } from '@shared/lib/theme';
+import { Button } from '@shared/ui';
+import { useAppGateContext } from '@app/providers/AppGateProvider';
+import { useAuth } from '@app/providers/AuthProvider';
 
 export default function SubExpiredScreen() {
   const { refresh } = useAppGateContext();
@@ -31,8 +32,8 @@ export default function SubExpiredScreen() {
   const handleLogout = async () => {
     try {
       await logout();
-    } catch (err: any) {
-      Alert.alert('Error', err.message);
+    } catch (err: unknown) {
+      Alert.alert('Error', getErrorMessage(err, 'Something went wrong'));
     }
   };
 
@@ -52,8 +53,8 @@ export default function SubExpiredScreen() {
               await leaveFamily(user.id);
               refresh();
               router.replace('/(onboarding)/create-family');
-            } catch (err: any) {
-              Alert.alert('Error', err.message ?? 'Could not leave family');
+            } catch (err: unknown) {
+              Alert.alert('Error', getErrorMessage(err, 'Could not leave family'));
             } finally {
               setLeaving(false);
             }
@@ -78,8 +79,8 @@ export default function SubExpiredScreen() {
         <Text style={styles.emoji}>⏸️</Text>
         <Text style={[styles.title, { color: theme.text }]}>Subscription Expired</Text>
         <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-          Your family owner's subscription has expired. Ask them to renew it to
-          continue using FiftyFifty.
+          Your family owner's subscription has expired. Ask them to renew it to continue using
+          FiftyFifty.
         </Text>
       </View>
 
@@ -91,11 +92,7 @@ export default function SubExpiredScreen() {
           loading={leaving}
           variant="secondary"
         />
-        <Button
-          title="Sign Out"
-          onPress={handleLogout}
-          variant="secondary"
-        />
+        <Button title="Sign Out" onPress={handleLogout} variant="secondary" />
       </View>
     </View>
   );

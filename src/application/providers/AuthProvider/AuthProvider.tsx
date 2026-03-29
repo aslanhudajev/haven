@@ -2,8 +2,8 @@ import { type User as UserSupabase } from '@supabase/supabase-js';
 import * as SplashScreen from 'expo-splash-screen';
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { AppState, View } from 'react-native';
-import { supabase } from '@shared/config/supabase';
 import { loginRevenueCat, REVENUECAT_ENABLED } from '@entities/subscription';
+import { supabase } from '@shared/config/supabase';
 import type { ReactNode } from 'react';
 
 AppState.addEventListener('change', (state) => {
@@ -40,14 +40,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setTimeout(() => {
-          setUser(session?.user ?? null);
-          setLoading(false);
-        }, 0);
-      },
-    );
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setTimeout(() => {
+        setUser(session?.user ?? null);
+        setLoading(false);
+      }, 0);
+    });
 
     return () => {
       authListener?.subscription.unsubscribe();

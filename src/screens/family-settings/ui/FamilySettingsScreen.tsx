@@ -20,13 +20,14 @@ import {
   type FamilyMember,
   type Family,
 } from '@entities/family';
-import { useAuth } from '@app/providers/AuthProvider';
-import { useAppGateContext } from '@app/providers/AppGateProvider';
-import { Button, Input, Card } from '@shared/ui';
-import { Colors, Spacing } from '@shared/lib/theme';
+import { getErrorMessage } from '@shared/lib/errors';
 import { toCents, fromCents, formatMoney } from '@shared/lib/format';
-import { inviteDeepLink } from '@shared/lib/storage/appStorageKeys';
 import type { Cadence } from '@shared/lib/period';
+import { inviteDeepLink } from '@shared/lib/storage';
+import { Colors, Spacing, type ThemeColors } from '@shared/lib/theme';
+import { Button, Input, Card } from '@shared/ui';
+import { useAppGateContext } from '@app/providers/AppGateProvider';
+import { useAuth } from '@app/providers/AuthProvider';
 
 const CADENCES: { value: Cadence; label: string }[] = [
   { value: 'weekly', label: 'Weekly' },
@@ -105,7 +106,7 @@ function MembersSection({
   isOwner: boolean;
   family: Family;
   user: { id: string } | null;
-  theme: (typeof Colors)['light'];
+  theme: ThemeColors;
   refresh: () => void;
   setMembers: (m: FamilyMember[]) => void;
 }) {
@@ -119,26 +120,22 @@ function MembersSection({
 
   const handleRemoveMember = (m: FamilyMember) => {
     const name = m.profile?.full_name || 'This member';
-    Alert.alert(
-      'Remove member?',
-      `${name} will lose access to this family.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await removeFamilyMember(m.id);
-              await reloadMembers();
-              refresh();
-            } catch (err: any) {
-              Alert.alert('Error', err.message ?? 'Could not remove member');
-            }
-          },
+    Alert.alert('Remove member?', `${name} will lose access to this family.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await removeFamilyMember(m.id);
+            await reloadMembers();
+            refresh();
+          } catch (err: unknown) {
+            Alert.alert('Error', getErrorMessage(err, 'Could not remove member'));
+          }
         },
-      ],
-    );
+      },
+    ]);
   };
 
   const handleTransferTo = (m: FamilyMember) => {
@@ -155,8 +152,8 @@ function MembersSection({
               await transferFamilyOwnership(m.user_id);
               await reloadMembers();
               refresh();
-            } catch (err: any) {
-              Alert.alert('Error', err.message ?? 'Could not transfer ownership');
+            } catch (err: unknown) {
+              Alert.alert('Error', getErrorMessage(err, 'Could not transfer ownership'));
             }
           },
         },
@@ -173,8 +170,8 @@ function MembersSection({
       await Share.share({
         message: `Join my family "${family.name}" on FiftyFifty!\n\n${link}`,
       });
-    } catch (err: any) {
-      Alert.alert('Error', err.message ?? 'Could not create invite');
+    } catch (err: unknown) {
+      Alert.alert('Error', getErrorMessage(err, 'Could not create invite'));
     } finally {
       setInviting(false);
     }
@@ -189,8 +186,7 @@ function MembersSection({
         </Text>
       </View>
       {members.map((m) => {
-        const canManage =
-          isOwner && user && m.user_id !== user.id && m.role === 'member';
+        const canManage = isOwner && user && m.user_id !== user.id && m.role === 'member';
         return (
           <View key={m.id} style={styles.memberRow}>
             <View style={styles.memberInfo}>
@@ -219,9 +215,7 @@ function MembersSection({
             {canManage && (
               <View style={styles.memberActions}>
                 <Pressable onPress={() => handleTransferTo(m)} hitSlop={8}>
-                  <Text style={[styles.memberActionText, { color: theme.accent }]}>
-                    Make owner
-                  </Text>
+                  <Text style={[styles.memberActionText, { color: theme.accent }]}>Make owner</Text>
                 </Pressable>
                 <Pressable onPress={() => handleRemoveMember(m)} hitSlop={8}>
                   <Text style={styles.memberActionRemove}>Remove</Text>
@@ -251,20 +245,14 @@ function MembersSection({
   );
 }
 
-function MemberReadOnly({
-  family,
-  theme,
-}: {
-  family: Family;
-  theme: (typeof Colors)['light'];
-}) {
+function MemberReadOnly({ family, theme }: { family: Family; theme: ThemeColors }) {
   const cadenceLabel =
     CADENCES.find((c) => c.value === family.period_cadence)?.label ?? family.period_cadence;
 
   const anchorLabel =
     family.period_cadence === 'monthly'
       ? `Day ${family.period_anchor_day}`
-      : WEEKDAYS[family.period_anchor_day - 1] ?? `Day ${family.period_anchor_day}`;
+      : (WEEKDAYS[family.period_anchor_day - 1] ?? `Day ${family.period_anchor_day}`);
 
   return (
     <>
@@ -297,7 +285,7 @@ function ReadOnlyRow({
 }: {
   label: string;
   value: string;
-  theme: (typeof Colors)['light'];
+  theme: ThemeColors;
   last?: boolean;
 }) {
   return (
@@ -315,8 +303,8 @@ function OwnerSettings({
   refresh,
 }: {
   family: Family;
-  theme: (typeof Colors)['light'];
-  setFamily: (f: any) => void;
+  theme: ThemeColors;
+  setFamily: (f: Family) => void;
   refresh: () => void;
 }) {
   const [name, setName] = useState(family.name);
@@ -329,7 +317,9 @@ function OwnerSettings({
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
 
-  const markDirty = () => { if (!dirty) setDirty(true); };
+  const markDirty = () => {
+    if (!dirty) setDirty(true);
+  };
   const isMonthly = cadence === 'monthly';
 
   const handleSave = async () => {
@@ -347,8 +337,8 @@ function OwnerSettings({
       setDirty(false);
       refresh();
       Alert.alert('Saved', 'Family settings updated.');
-    } catch (err: any) {
-      Alert.alert('Error', err.message ?? 'Could not save settings');
+    } catch (err: unknown) {
+      Alert.alert('Error', getErrorMessage(err, 'Could not save settings'));
     } finally {
       setSaving(false);
     }
@@ -366,7 +356,10 @@ function OwnerSettings({
         <Input
           label="Family name"
           value={name}
-          onChangeText={(v) => { setName(v); markDirty(); }}
+          onChangeText={(v) => {
+            setName(v);
+            markDirty();
+          }}
           placeholder="Family name"
           style={inputStyle}
         />
@@ -375,7 +368,10 @@ function OwnerSettings({
             <Input
               label="Budget per period"
               value={budgetStr}
-              onChangeText={(v) => { setBudgetStr(v); markDirty(); }}
+              onChangeText={(v) => {
+                setBudgetStr(v);
+                markDirty();
+              }}
               placeholder="e.g. 5000"
               keyboardType="numeric"
               style={inputStyle}
@@ -383,7 +379,11 @@ function OwnerSettings({
           </View>
           <View style={styles.currencyPill}>
             <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>Currency</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.currencyScroll}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.currencyScroll}
+            >
               <View style={styles.currencyRow}>
                 {CURRENCIES.map((c) => {
                   const active = currency === c;
@@ -397,7 +397,10 @@ function OwnerSettings({
                           borderColor: active ? theme.accent : theme.backgroundSelected,
                         },
                       ]}
-                      onPress={() => { setCurrency(c); markDirty(); }}
+                      onPress={() => {
+                        setCurrency(c);
+                        markDirty();
+                      }}
                     >
                       <Text style={[styles.currencyText, { color: active ? '#fff' : theme.text }]}>
                         {c}
@@ -420,10 +423,7 @@ function OwnerSettings({
           {CADENCES.map((c) => (
             <Pressable
               key={c.value}
-              style={[
-                styles.segment,
-                cadence === c.value && { backgroundColor: theme.accent },
-              ]}
+              style={[styles.segment, cadence === c.value && { backgroundColor: theme.accent }]}
               onPress={() => {
                 setCadence(c.value);
                 setAnchorDay(c.value === 'monthly' ? 1 : 1);
@@ -431,10 +431,7 @@ function OwnerSettings({
               }}
             >
               <Text
-                style={[
-                  styles.segmentText,
-                  { color: cadence === c.value ? '#fff' : theme.text },
-                ]}
+                style={[styles.segmentText, { color: cadence === c.value ? '#fff' : theme.text }]}
               >
                 {c.label}
               </Text>
@@ -446,15 +443,27 @@ function OwnerSettings({
           {isMonthly ? 'Starts on day' : 'Starts on'}
         </Text>
         {isMonthly ? (
-          <MonthDayPicker value={anchorDay} onChange={(v) => { setAnchorDay(v); markDirty(); }} theme={theme} />
+          <MonthDayPicker
+            value={anchorDay}
+            onChange={(v) => {
+              setAnchorDay(v);
+              markDirty();
+            }}
+            theme={theme}
+          />
         ) : (
-          <WeekdayPicker value={anchorDay} onChange={(v) => { setAnchorDay(v); markDirty(); }} theme={theme} />
+          <WeekdayPicker
+            value={anchorDay}
+            onChange={(v) => {
+              setAnchorDay(v);
+              markDirty();
+            }}
+            theme={theme}
+          />
         )}
       </Card>
 
-      {dirty && (
-        <Button title="Save Changes" onPress={handleSave} loading={saving} />
-      )}
+      {dirty && <Button title="Save Changes" onPress={handleSave} loading={saving} />}
     </>
   );
 }
@@ -466,7 +475,7 @@ function WeekdayPicker({
 }: {
   value: number;
   onChange: (v: number) => void;
-  theme: (typeof Colors)['light'];
+  theme: ThemeColors;
 }) {
   return (
     <View style={styles.weekdayRow}>
@@ -482,9 +491,7 @@ function WeekdayPicker({
             ]}
             onPress={() => onChange(dayNum)}
           >
-            <Text style={[styles.weekdayText, { color: active ? '#fff' : theme.text }]}>
-              {day}
-            </Text>
+            <Text style={[styles.weekdayText, { color: active ? '#fff' : theme.text }]}>{day}</Text>
           </Pressable>
         );
       })}
@@ -499,7 +506,7 @@ function MonthDayPicker({
 }: {
   value: number;
   onChange: (v: number) => void;
-  theme: (typeof Colors)['light'];
+  theme: ThemeColors;
 }) {
   const days = Array.from({ length: 28 }, (_, i) => i + 1);
   return (
@@ -515,9 +522,7 @@ function MonthDayPicker({
             ]}
             onPress={() => onChange(d)}
           >
-            <Text style={[styles.dayCellText, { color: active ? '#fff' : theme.text }]}>
-              {d}
-            </Text>
+            <Text style={[styles.dayCellText, { color: active ? '#fff' : theme.text }]}>{d}</Text>
           </Pressable>
         );
       })}
@@ -606,7 +611,7 @@ const styles = StyleSheet.create({
   },
   scheduleHint: { fontSize: 13, marginBottom: 12 },
 
-  budgetInputRow: { },
+  budgetInputRow: {},
   currencyPill: { marginBottom: 4 },
   currencyScroll: { marginTop: 2 },
   currencyRow: { flexDirection: 'row', gap: 8 },

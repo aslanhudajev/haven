@@ -27,12 +27,8 @@ export function calculateSettlements(entries: SpendEntry[]): Settlement[] {
     balance: e.totalCents - fair,
   }));
 
-  const debtors = balances
-    .filter((b) => b.balance < 0)
-    .sort((a, b) => a.balance - b.balance);
-  const creditors = balances
-    .filter((b) => b.balance > 0)
-    .sort((a, b) => b.balance - a.balance);
+  const debtors = balances.filter((b) => b.balance < 0).sort((a, b) => a.balance - b.balance);
+  const creditors = balances.filter((b) => b.balance > 0).sort((a, b) => b.balance - a.balance);
 
   const settlements: Settlement[] = [];
   let di = 0;

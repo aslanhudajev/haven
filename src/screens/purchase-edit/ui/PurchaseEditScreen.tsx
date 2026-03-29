@@ -1,4 +1,8 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as ImagePicker from 'expo-image-picker';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
+import { useForm, Controller } from 'react-hook-form';
 import {
   ActivityIndicator,
   Alert,
@@ -13,14 +17,8 @@ import {
   View,
   useColorScheme,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import * as ImagePicker from 'expo-image-picker';
-import { useAuth } from '@app/providers/AuthProvider';
-import { useAppGateContext } from '@app/providers/AppGateProvider';
 import {
   deletePurchase,
   getPurchaseById,
@@ -31,15 +29,17 @@ import {
   useReceiptSignedUrl,
   type Purchase,
 } from '@entities/purchase';
-import { Button, Input } from '@shared/ui';
-import { Colors, Spacing } from '@shared/lib/theme';
 import { formatMoney, toCents, fromCents } from '@shared/lib/format';
+import { Colors, Spacing } from '@shared/lib/theme';
+import { Button, Input } from '@shared/ui';
+import { useAppGateContext } from '@app/providers/AppGateProvider';
+import { useAuth } from '@app/providers/AuthProvider';
 
 const schema = z.object({
-  amount: z.string().min(1, 'Amount is required').refine(
-    (v) => !isNaN(parseFloat(v)) && parseFloat(v) > 0,
-    'Enter a valid amount',
-  ),
+  amount: z
+    .string()
+    .min(1, 'Amount is required')
+    .refine((v) => !isNaN(parseFloat(v)) && parseFloat(v) > 0, 'Enter a valid amount'),
   description: z.string().optional(),
 });
 
@@ -47,9 +47,7 @@ type FormData = z.infer<typeof schema>;
 
 export default function PurchaseEditScreen() {
   const params = useLocalSearchParams<{ purchaseId: string | string[] }>();
-  const purchaseId = Array.isArray(params.purchaseId)
-    ? params.purchaseId[0]
-    : params.purchaseId;
+  const purchaseId = Array.isArray(params.purchaseId) ? params.purchaseId[0] : params.purchaseId;
   const router = useRouter();
   const { user } = useAuth();
   const { family } = useAppGateContext();
@@ -221,7 +219,11 @@ export default function PurchaseEditScreen() {
     return (
       <ScrollView
         style={[styles.container, { backgroundColor: theme.background }]}
-        contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.xl, paddingHorizontal: 24, paddingTop: 16 }}
+        contentContainerStyle={{
+          paddingBottom: insets.bottom + Spacing.xl,
+          paddingHorizontal: 24,
+          paddingTop: 16,
+        }}
       >
         <Text style={[styles.readOnlyLabel, { color: theme.textSecondary }]}>Amount</Text>
         <Text style={[styles.readOnlyValue, { color: theme.text }]}>
@@ -232,7 +234,9 @@ export default function PurchaseEditScreen() {
             <Text style={[styles.readOnlyLabel, { color: theme.textSecondary, marginTop: 16 }]}>
               Description
             </Text>
-            <Text style={[styles.readOnlyValue, { color: theme.text }]}>{purchase.description}</Text>
+            <Text style={[styles.readOnlyValue, { color: theme.text }]}>
+              {purchase.description}
+            </Text>
           </>
         ) : null}
         {purchase.receipt_url ? (
@@ -254,7 +258,11 @@ export default function PurchaseEditScreen() {
     >
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.lg, paddingHorizontal: 24, paddingTop: 16 }}
+        contentContainerStyle={{
+          paddingBottom: insets.bottom + Spacing.lg,
+          paddingHorizontal: 24,
+          paddingTop: 16,
+        }}
       >
         <Controller
           control={control}
@@ -357,9 +365,21 @@ const styles = StyleSheet.create({
   readOnlyValue: { fontSize: 20, fontWeight: '600' },
   hint: { fontSize: 15, lineHeight: 22 },
   receiptSection: { marginBottom: 16 },
-  receiptLabel: { fontSize: 13, fontWeight: '500', textTransform: 'uppercase', marginBottom: 8, marginLeft: 4 },
+  receiptLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    textTransform: 'uppercase',
+    marginBottom: 8,
+    marginLeft: 4,
+  },
   receiptButtons: { flexDirection: 'row', gap: 12 },
-  receiptBtn: { flex: 1, height: 44, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  receiptBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   receiptBtnText: { fontSize: 15, fontWeight: '500' },
   receiptPreview: { width: '100%', height: 200, borderRadius: 12, marginTop: 12 },
   actions: { marginTop: 8 },

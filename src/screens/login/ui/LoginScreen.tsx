@@ -1,4 +1,7 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
+import { useForm, Controller } from 'react-hook-form';
 import {
   ActivityIndicator,
   Alert,
@@ -11,12 +14,10 @@ import {
   View,
   useColorScheme,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { requestOtp } from '@entities/auth';
+import { getErrorMessage } from '@shared/lib/errors';
 import { Colors } from '@shared/lib/theme';
 
 const schema = z.object({
@@ -49,8 +50,8 @@ export default function LoginScreen() {
         pathname: '/(auth)/verify-otp',
         params: { email },
       });
-    } catch (err: any) {
-      Alert.alert('Error', err.message ?? 'Could not send code');
+    } catch (err: unknown) {
+      Alert.alert('Error', getErrorMessage(err, 'Could not send code'));
     } finally {
       setSending(false);
     }
@@ -95,9 +96,7 @@ export default function LoginScreen() {
             />
           )}
         />
-        {errors.email && (
-          <Text style={styles.errorText}>{errors.email.message}</Text>
-        )}
+        {errors.email && <Text style={styles.errorText}>{errors.email.message}</Text>}
 
         <Pressable
           style={({ pressed }) => [

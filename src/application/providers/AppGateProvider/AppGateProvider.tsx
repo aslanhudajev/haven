@@ -1,5 +1,5 @@
-import { createContext, useContext } from 'react';
 import { useRootNavigationState, useSegments, Redirect } from 'expo-router';
+import { createContext, useContext } from 'react';
 import { useAuth } from '../AuthProvider';
 import { useAppGate, type AppGateData } from './useAppGate';
 import type { ReactNode } from 'react';
@@ -45,7 +45,7 @@ function AppGateRedirect() {
 
   if (!ready || isLoading) return null;
 
-  const currentGroup = segments[0] ?? '';
+  const currentGroup = (segments[0] as string | undefined) ?? '';
   const targetGroup = ROUTE_TO_GROUP[targetRoute] ?? '';
   const currentPath = currentPathFromSegments(segments);
 

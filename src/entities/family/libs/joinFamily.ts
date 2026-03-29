@@ -39,10 +39,7 @@ function mapRedeemRpcError(message: string): JoinFamilyError {
     );
   }
   if (m.includes('JOIN_FAMILY_FAMILY_FULL')) {
-    return new JoinFamilyError(
-      'FAMILY_FULL',
-      'This family is full and cannot accept new members.',
-    );
+    return new JoinFamilyError('FAMILY_FULL', 'This family is full and cannot accept new members.');
   }
   if (m.includes('JOIN_FAMILY_UNAUTHORIZED')) {
     return new JoinFamilyError('NOT_FOUND', 'Sign in to accept this invite.');
@@ -52,7 +49,9 @@ function mapRedeemRpcError(message: string): JoinFamilyError {
 
 /** Redeem an invite for the current session user (uses `auth.uid()` in the database). */
 export async function joinFamily(inviteCode: string) {
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) {
     throw new JoinFamilyError('NOT_FOUND', 'Sign in to accept this invite.');
   }

@@ -23,3 +23,24 @@
 -- INSERT INTO public.purchases (family_id, period_id, user_id, amount_cents, description) VALUES
 --   ('aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000001', '<owner-user-uuid>', 350000, 'Groceries at ICA'),
 --   ('aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000001', '<member-user-uuid>', 150000, 'Cleaning supplies');
+--
+-- Second family (optional): duplicate the pattern with new UUIDs for family / periods / purchases.
+--
+-- Archived period + unsettled ledger (status must be 'archived' before 'resolved'):
+--
+-- INSERT INTO public.periods (id, family_id, name, starts_at, ends_at, status) VALUES
+--   ('cccccccc-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'Feb 2026', '2026-02-01', '2026-02-28', 'archived');
+--
+-- INSERT INTO public.purchases (family_id, period_id, user_id, amount_cents, description) VALUES
+--   ('aaaaaaaa-0000-0000-0000-000000000001', 'cccccccc-0000-0000-0000-000000000001', '<owner-user-uuid>', 120000, 'Utilities');
+--
+-- After the period has ended in real time, you can mark it settled from the app, or test via SQL:
+--
+-- UPDATE public.periods
+-- SET status = 'resolved', resolved_at = now(), resolved_by = '<owner-user-uuid>'
+-- WHERE id = 'cccccccc-0000-0000-0000-000000000001';
+--
+-- Push token row (optional; the app normally upserts this after login):
+--
+-- INSERT INTO public.push_tokens (user_id, expo_push_token) VALUES
+--   ('<user-uuid>', 'ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]');

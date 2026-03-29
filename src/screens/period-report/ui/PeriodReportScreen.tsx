@@ -1,11 +1,7 @@
-import { Alert, Pressable, StyleSheet, Text, View, useColorScheme, ScrollView } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Colors, Spacing } from '@shared/lib/theme';
-import { formatMoney, formatDateRange, isLocalCalendarDateAfterInclusiveEnd } from '@shared/lib/format';
-import { calculateSettlements, type Settlement } from '@shared/lib/settlement';
-import { getPurchases, type Purchase } from '@entities/purchase';
+import { Alert, StyleSheet, Text, View, useColorScheme, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFamilyStore, type FamilyMember } from '@entities/family';
 import {
   countArchivedUnsettledPeriods,
@@ -13,19 +9,33 @@ import {
   resolvePeriod,
   useLedgerTabBadgeStore,
 } from '@entities/period';
-import { useAuth } from '@app/providers/AuthProvider';
-import { useAppGateContext } from '@app/providers/AppGateProvider';
+import { getPurchases, type Purchase } from '@entities/purchase';
+import { getErrorMessage } from '@shared/lib/errors';
+import {
+  formatMoney,
+  formatDateRange,
+  isLocalCalendarDateAfterInclusiveEnd,
+} from '@shared/lib/format';
+import { calculateSettlements, type Settlement } from '@shared/lib/settlement';
+import { Colors, Spacing } from '@shared/lib/theme';
 import { Card, Button } from '@shared/ui';
+import { useAppGateContext } from '@app/providers/AppGateProvider';
+import { useAuth } from '@app/providers/AuthProvider';
 
 export default function PeriodReportScreen() {
-  const { periodId, periodName, startsAt, endsAt, status: initialStatus } = useLocalSearchParams<{
+  const {
+    periodId,
+    periodName,
+    startsAt,
+    endsAt,
+    status: initialStatus,
+  } = useLocalSearchParams<{
     periodId: string;
     periodName: string;
     startsAt: string;
     endsAt: string;
     status: string;
   }>();
-  const router = useRouter();
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
   const insets = useSafeAreaInsets();
@@ -35,16 +45,12 @@ export default function PeriodReportScreen() {
   const setUnsettledCount = useLedgerTabBadgeStore((s) => s.setUnsettledArchivedCount);
 
   const [purchases, setPurchases] = useState<Purchase[]>([]);
-  const [loading, setLoading] = useState(true);
   const [resolving, setResolving] = useState(false);
   const [status, setStatus] = useState(initialStatus ?? 'archived');
 
   useEffect(() => {
     if (!periodId) return;
-    getPurchases(periodId)
-      .then(setPurchases)
-      .catch(console.warn)
-      .finally(() => setLoading(false));
+    getPurchases(periodId).then(setPurchases).catch(console.warn);
   }, [periodId]);
 
   const totalSpent = purchases.reduce((sum, p) => sum + p.amount_cents, 0);
@@ -60,36 +66,32 @@ export default function PeriodReportScreen() {
   const settlements = calculateSettlements(spendByUser);
 
   const handleResolve = () => {
-    Alert.alert(
-      'Mark as Settled?',
-      'This confirms all debts for this period have been paid.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Mark Settled',
-          onPress: async () => {
-            if (!periodId || !user) return;
-            setResolving(true);
-            try {
-              await resolvePeriod(periodId, user.id);
-              setStatus('resolved');
-              if (family) {
-                try {
-                  const ledger = await getLedgerPeriods(family.id);
-                  setUnsettledCount(countArchivedUnsettledPeriods(ledger));
-                } catch {
-                  /* badge refresh is best-effort */
-                }
+    Alert.alert('Mark as Settled?', 'This confirms all debts for this period have been paid.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Mark Settled',
+        onPress: async () => {
+          if (!periodId || !user) return;
+          setResolving(true);
+          try {
+            await resolvePeriod(periodId, user.id);
+            setStatus('resolved');
+            if (family) {
+              try {
+                const ledger = await getLedgerPeriods(family.id);
+                setUnsettledCount(countArchivedUnsettledPeriods(ledger));
+              } catch {
+                /* badge refresh is best-effort */
               }
-            } catch (err: any) {
-              Alert.alert('Error', err.message ?? 'Could not resolve period');
-            } finally {
-              setResolving(false);
             }
-          },
+          } catch (err: unknown) {
+            Alert.alert('Error', getErrorMessage(err, 'Could not resolve period'));
+          } finally {
+            setResolving(false);
+          }
         },
-      ],
-    );
+      },
+    ]);
   };
 
   const isResolved = status === 'resolved';
@@ -104,7 +106,9 @@ export default function PeriodReportScreen() {
     >
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <Text style={[styles.title, { color: theme.text, flex: 1, minWidth: 0 }]}>{periodName}</Text>
+          <Text style={[styles.title, { color: theme.text, flex: 1, minWidth: 0 }]}>
+            {periodName}
+          </Text>
           {isResolved && (
             <View style={styles.resolvedBadge}>
               <Text style={styles.resolvedBadgeText}>Settled</Text>
@@ -117,7 +121,9 @@ export default function PeriodReportScreen() {
           )}
           {status === 'archived' && !isResolved && (
             <View style={[styles.statusBadge, { backgroundColor: theme.backgroundSelected }]}>
-              <Text style={[styles.statusBadgeText, { color: theme.textSecondary }]}>Unsettled</Text>
+              <Text style={[styles.statusBadgeText, { color: theme.textSecondary }]}>
+                Unsettled
+              </Text>
             </View>
           )}
         </View>
@@ -130,9 +136,7 @@ export default function PeriodReportScreen() {
 
       <Card style={styles.section}>
         <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Total spent</Text>
-        <Text style={[styles.totalAmount, { color: theme.text }]}>
-          {formatMoney(totalSpent)}
-        </Text>
+        <Text style={[styles.totalAmount, { color: theme.text }]}>{formatMoney(totalSpent)}</Text>
       </Card>
 
       <Card style={styles.section}>
@@ -188,7 +192,7 @@ export default function PeriodReportScreen() {
         <View style={[styles.resolveAction, styles.pendingEndHint]}>
           <Text style={[styles.pendingEndText, { color: theme.textSecondary }]}>
             {
-              "This period is still open. Settlement is available after the last day; you can review spending anytime."
+              'This period is still open. Settlement is available after the last day; you can review spending anytime.'
             }
           </Text>
         </View>
@@ -202,11 +206,7 @@ export default function PeriodReportScreen() {
       )}
       {canResolve && (
         <View style={styles.resolveAction}>
-          <Button
-            title="Mark as Settled"
-            onPress={handleResolve}
-            loading={resolving}
-          />
+          <Button title="Mark as Settled" onPress={handleResolve} loading={resolving} />
         </View>
       )}
     </ScrollView>

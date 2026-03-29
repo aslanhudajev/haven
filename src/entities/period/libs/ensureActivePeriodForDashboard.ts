@@ -1,10 +1,10 @@
+import { periodLog } from '@shared/lib/debug';
 import { toLocalCalendarISODate } from '@shared/lib/format';
-import { periodLog } from '@shared/lib/debug/periodLog';
 import type { Cadence } from '@shared/lib/period';
-import type { Period } from '../model/types';
 import { archivePeriod } from './archivePeriod';
 import { createPeriod } from './createPeriod';
 import { getActivePeriod } from './getPeriods';
+import type { Period } from '../model/types';
 
 function isUniqueViolation(err: unknown): boolean {
   return (

@@ -1,4 +1,8 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
+import { useForm, Controller } from 'react-hook-form';
 import {
   ActivityIndicator,
   Alert,
@@ -11,26 +15,23 @@ import {
   View,
   useColorScheme,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import * as ImagePicker from 'expo-image-picker';
-import { useAuth } from '@app/providers/AuthProvider';
-import { useAppGateContext } from '@app/providers/AppGateProvider';
 import { usePeriodStore, ensureActivePeriodForDashboard } from '@entities/period';
 import { addPurchase, uploadReceipt, usePurchaseStore } from '@entities/purchase';
-import { Button, Input } from '@shared/ui';
-import { Colors, Spacing } from '@shared/lib/theme';
+import { runSerialized } from '@shared/lib/async';
+import { getErrorMessage } from '@shared/lib/errors';
 import { toCents } from '@shared/lib/format';
-import { runSerialized } from '@shared/lib/async/runSerialized';
+import { Colors, Spacing } from '@shared/lib/theme';
+import { Button, Input } from '@shared/ui';
+import { useAppGateContext } from '@app/providers/AppGateProvider';
+import { useAuth } from '@app/providers/AuthProvider';
 
 const schema = z.object({
-  amount: z.string().min(1, 'Amount is required').refine(
-    (v) => !isNaN(parseFloat(v)) && parseFloat(v) > 0,
-    'Enter a valid amount',
-  ),
+  amount: z
+    .string()
+    .min(1, 'Amount is required')
+    .refine((v) => !isNaN(parseFloat(v)) && parseFloat(v) > 0, 'Enter a valid amount'),
   description: z.string().optional(),
 });
 
@@ -77,7 +78,9 @@ export default function AddPurchaseScreen() {
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [family, activePeriod]);
 
   const {
@@ -139,8 +142,8 @@ export default function AddPurchaseScreen() {
 
       addPurchaseToStore(purchase);
       router.back();
-    } catch (err: any) {
-      Alert.alert('Error', err.message ?? 'Could not add purchase');
+    } catch (err: unknown) {
+      Alert.alert('Error', getErrorMessage(err, 'Could not add purchase'));
     } finally {
       setLoading(false);
     }
@@ -219,9 +222,7 @@ export default function AddPurchaseScreen() {
               <Text style={[styles.receiptBtnText, { color: theme.text }]}>🖼️ Gallery</Text>
             </Pressable>
           </View>
-          {receiptUri && (
-            <Image source={{ uri: receiptUri }} style={styles.receiptPreview} />
-          )}
+          {receiptUri && <Image source={{ uri: receiptUri }} style={styles.receiptPreview} />}
         </View>
 
         <View style={styles.actions}>
@@ -238,9 +239,21 @@ const styles = StyleSheet.create({
   content: { flex: 1, paddingHorizontal: 24, paddingTop: 16 },
   empty: { fontSize: 17, textAlign: 'center', marginTop: 64, paddingHorizontal: 32 },
   receiptSection: { marginBottom: 16 },
-  receiptLabel: { fontSize: 13, fontWeight: '500', textTransform: 'uppercase', marginBottom: 8, marginLeft: 4 },
+  receiptLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    textTransform: 'uppercase',
+    marginBottom: 8,
+    marginLeft: 4,
+  },
   receiptButtons: { flexDirection: 'row', gap: 12 },
-  receiptBtn: { flex: 1, height: 44, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  receiptBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   receiptBtnText: { fontSize: 15, fontWeight: '500' },
   receiptPreview: { width: '100%', height: 200, borderRadius: 12, marginTop: 12 },
   actions: { marginTop: 'auto' },

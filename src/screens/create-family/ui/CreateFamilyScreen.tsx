@@ -1,16 +1,8 @@
-import { useState } from 'react';
-import {
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  useColorScheme,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useState } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { z } from 'zod';
 import { createFamily, getFamily, useFamilyStore } from '@entities/family';
 import { createPeriod, getActivePeriod } from '@entities/period';
@@ -20,15 +12,16 @@ import {
   getSubscriptionTier,
   syncRevenueCatSubscription,
 } from '@entities/subscription';
-import { useAuth } from '@app/providers/AuthProvider';
-import { useAppGateContext } from '@app/providers/AppGateProvider';
 import { supabase } from '@shared/config/supabase';
-import { Button, Input } from '@shared/ui';
-import { Colors, Spacing } from '@shared/lib/theme';
+import { runSerialized } from '@shared/lib/async';
+import { periodLog } from '@shared/lib/debug';
+import { getErrorMessage } from '@shared/lib/errors';
 import { toCents } from '@shared/lib/format';
-import { runSerialized } from '@shared/lib/async/runSerialized';
-import { periodLog } from '@shared/lib/debug/periodLog';
 import type { Cadence } from '@shared/lib/period';
+import { Colors, Spacing, type ThemeColors } from '@shared/lib/theme';
+import { Button, Input } from '@shared/ui';
+import { useAppGateContext } from '@app/providers/AppGateProvider';
+import { useAuth } from '@app/providers/AuthProvider';
 
 const CADENCES: { value: Cadence; label: string }[] = [
   { value: 'weekly', label: 'Weekly' },
@@ -122,8 +115,8 @@ export default function CreateFamilyScreen() {
 
       setFamily(latest);
       refresh();
-    } catch (err: any) {
-      Alert.alert('Error', err.message ?? 'Could not create family');
+    } catch (err: unknown) {
+      Alert.alert('Error', getErrorMessage(err, 'Could not create family'));
     } finally {
       setLoading(false);
     }
@@ -185,19 +178,14 @@ export default function CreateFamilyScreen() {
         />
 
         <View style={styles.section}>
-          <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-            Budget cycle
-          </Text>
+          <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Budget cycle</Text>
           <View style={[styles.segmented, { backgroundColor: theme.backgroundElement }]}>
             {CADENCES.map((c) => (
               <Pressable
                 key={c.value}
                 style={[
                   styles.segment,
-                  cadence === c.value && [
-                    styles.segmentActive,
-                    { backgroundColor: theme.accent },
-                  ],
+                  cadence === c.value && [styles.segmentActive, { backgroundColor: theme.accent }],
                 ]}
                 onPress={() => {
                   setCadence(c.value);
@@ -205,10 +193,7 @@ export default function CreateFamilyScreen() {
                 }}
               >
                 <Text
-                  style={[
-                    styles.segmentText,
-                    { color: cadence === c.value ? '#fff' : theme.text },
-                  ]}
+                  style={[styles.segmentText, { color: cadence === c.value ? '#fff' : theme.text }]}
                 >
                   {c.label}
                 </Text>
@@ -243,7 +228,7 @@ function WeekdayPicker({
 }: {
   value: number;
   onChange: (v: number) => void;
-  theme: (typeof Colors)['light'];
+  theme: ThemeColors;
 }) {
   return (
     <View style={styles.weekdayRow}>
@@ -259,11 +244,7 @@ function WeekdayPicker({
             ]}
             onPress={() => onChange(dayNum)}
           >
-            <Text
-              style={[styles.weekdayText, { color: active ? '#fff' : theme.text }]}
-            >
-              {day}
-            </Text>
+            <Text style={[styles.weekdayText, { color: active ? '#fff' : theme.text }]}>{day}</Text>
           </Pressable>
         );
       })}
@@ -278,7 +259,7 @@ function MonthDayPicker({
 }: {
   value: number;
   onChange: (v: number) => void;
-  theme: (typeof Colors)['light'];
+  theme: ThemeColors;
 }) {
   const days = Array.from({ length: 28 }, (_, i) => i + 1);
   return (
@@ -294,9 +275,7 @@ function MonthDayPicker({
             ]}
             onPress={() => onChange(d)}
           >
-            <Text style={[styles.dayCellText, { color: active ? '#fff' : theme.text }]}>
-              {d}
-            </Text>
+            <Text style={[styles.dayCellText, { color: active ? '#fff' : theme.text }]}>{d}</Text>
           </Pressable>
         );
       })}

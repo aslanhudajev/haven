@@ -1,16 +1,17 @@
-import { Alert, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { Colors, Spacing } from '@shared/lib/theme';
+import { Alert, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { logout } from '@entities/auth';
 import { useFamilyStore } from '@entities/family';
 import { useLedgerTabBadgeStore, usePeriodStore } from '@entities/period';
 import { usePurchaseStore } from '@entities/purchase';
 import { REVENUECAT_ENABLED } from '@entities/subscription';
-import { useAuth } from '@app/providers/AuthProvider';
-import { useAppGateContext } from '@app/providers/AppGateProvider';
-import { Card } from '@shared/ui';
 import { supabase } from '@shared/config/supabase';
+import { getErrorMessage } from '@shared/lib/errors';
+import { Colors, Spacing } from '@shared/lib/theme';
+import { Card } from '@shared/ui';
+import { useAppGateContext } from '@app/providers/AppGateProvider';
+import { useAuth } from '@app/providers/AuthProvider';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -52,8 +53,8 @@ export default function SettingsScreen() {
             clearLedgerBadge();
             clearPurchases();
             refresh();
-          } catch (err: any) {
-            Alert.alert('Error', err.message ?? 'Something went wrong');
+          } catch (err: unknown) {
+            Alert.alert('Error', getErrorMessage(err, 'Something went wrong'));
           }
         },
       },
@@ -85,8 +86,8 @@ export default function SettingsScreen() {
 
               await logout();
               await AsyncStorage.clear();
-            } catch (err: any) {
-              Alert.alert('Reset error', err.message);
+            } catch (err: unknown) {
+              Alert.alert('Reset error', getErrorMessage(err, 'Reset failed'));
             }
           },
         },
@@ -103,8 +104,8 @@ export default function SettingsScreen() {
         onPress: async () => {
           try {
             await logout();
-          } catch (err: any) {
-            Alert.alert('Error', err.message);
+          } catch (err: unknown) {
+            Alert.alert('Error', getErrorMessage(err, 'Sign out failed'));
           }
         },
       },
@@ -137,9 +138,7 @@ export default function SettingsScreen() {
           ]}
           onPress={handleLeaveFamily}
         >
-          <Text style={styles.dangerText}>
-            {isOwner ? 'Delete Family' : 'Leave Family'}
-          </Text>
+          <Text style={styles.dangerText}>{isOwner ? 'Delete Family' : 'Leave Family'}</Text>
         </Pressable>
       )}
 
@@ -156,10 +155,7 @@ export default function SettingsScreen() {
 
       {__DEV__ && (
         <Pressable
-          style={({ pressed }) => [
-            styles.devResetButton,
-            pressed && styles.pressed,
-          ]}
+          style={({ pressed }) => [styles.devResetButton, pressed && styles.pressed]}
           onPress={handleDevReset}
         >
           <Text style={styles.devResetText}>DEV: Full Reset</Text>

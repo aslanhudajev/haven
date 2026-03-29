@@ -110,9 +110,9 @@ export type Database = {
         Insert: {
           id?: string;
           family_id: string;
-          code: string;
+          code?: string;
           created_by: string;
-          expires_at: string;
+          expires_at?: string;
           used_by?: string | null;
           used_at?: string | null;
           created_at?: string;
@@ -139,6 +139,7 @@ export type Database = {
           status: string;
           resolved_at: string | null;
           resolved_by: string | null;
+          period_end_push_sent_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -150,6 +151,7 @@ export type Database = {
           status?: string;
           resolved_at?: string | null;
           resolved_by?: string | null;
+          period_end_push_sent_at?: string | null;
           created_at?: string;
         };
         Update: {
@@ -161,7 +163,26 @@ export type Database = {
           status?: string;
           resolved_at?: string | null;
           resolved_by?: string | null;
+          period_end_push_sent_at?: string | null;
           created_at?: string;
+        };
+        Relationships: [];
+      };
+      push_tokens: {
+        Row: {
+          user_id: string;
+          expo_push_token: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          expo_push_token: string;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          expo_push_token?: string;
+          updated_at?: string;
         };
         Relationships: [];
       };
@@ -194,7 +215,7 @@ export type Database = {
           period_id?: string;
           user_id?: string;
           amount_cents?: number;
-          description?: string;
+          description?: string | null;
           receipt_url?: string | null;
           created_at?: string;
           updated_at?: string;

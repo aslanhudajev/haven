@@ -1,8 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
-import { getProfile, type Profile } from '@entities/profile';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getFamily, joinFamily, type Family, type FamilyMember } from '@entities/family';
+import { getProfile, type Profile } from '@entities/profile';
 import {
   REVENUECAT_ENABLED,
   checkSubscription,
@@ -15,7 +14,8 @@ import {
   APP_STORAGE_PENDING_INVITE_KEY,
   loadWelcomedFlag,
   loadPendingInviteCode,
-} from '@shared/lib/storage/appStorageKeys';
+} from '@shared/lib/storage';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 export type AppGateTarget =
   | '/(auth)/welcome'
@@ -81,10 +81,7 @@ export function useAppGate(user: SupabaseUser | null): AppGateData {
       }
     }
 
-    const [profileData, familyData] = await Promise.all([
-      getProfile(userId),
-      getFamily(userId),
-    ]);
+    const [profileData, familyData] = await Promise.all([getProfile(userId), getFamily(userId)]);
 
     setProfile(profileData);
 

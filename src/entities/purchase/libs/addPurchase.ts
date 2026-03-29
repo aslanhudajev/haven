@@ -18,7 +18,7 @@ export async function addPurchase(input: AddPurchaseInput): Promise<Purchase> {
       period_id: input.period_id,
       user_id: input.user_id,
       amount_cents: input.amount_cents,
-      description: input.description ?? null,
+      description: input.description ?? '',
       receipt_url: input.receipt_url ?? null,
     })
     .select()

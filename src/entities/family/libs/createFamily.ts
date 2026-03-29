@@ -10,10 +10,7 @@ type CreateFamilyInput = {
   period_anchor_day?: number;
 };
 
-export async function createFamily(
-  input: CreateFamilyInput,
-  userId: string,
-): Promise<Family> {
+export async function createFamily(input: CreateFamilyInput, userId: string): Promise<Family> {
   const { data: family, error: familyError } = await supabase
     .from('families')
     .insert({

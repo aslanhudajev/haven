@@ -19,7 +19,8 @@ export const Colors = {
   },
 } as const;
 
-export type ThemeColors = typeof Colors.light;
+/** Active palette from `Colors.light` or `Colors.dark` (not only light literals). */
+export type ThemeColors = (typeof Colors)[keyof typeof Colors];
 export type ThemeColor = keyof ThemeColors;
 
 export const Fonts = Platform.select({

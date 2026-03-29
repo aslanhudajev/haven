@@ -13,8 +13,7 @@ type PurchaseState = {
 export const usePurchaseStore = create<PurchaseState>((set) => ({
   purchases: [],
   setPurchases: (purchases) => set({ purchases }),
-  addPurchase: (purchase) =>
-    set((state) => ({ purchases: [purchase, ...state.purchases] })),
+  addPurchase: (purchase) => set((state) => ({ purchases: [purchase, ...state.purchases] })),
   updatePurchaseInList: (purchase) =>
     set((state) => ({
       purchases: state.purchases.map((p) => (p.id === purchase.id ? { ...p, ...purchase } : p)),

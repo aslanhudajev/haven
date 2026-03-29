@@ -1,5 +1,5 @@
 import { supabase } from '@shared/config/supabase';
-import { periodLog } from '@shared/lib/debug/periodLog';
+import { periodLog } from '@shared/lib/debug';
 
 export async function archivePeriod(periodId: string) {
   periodLog('archivePeriod', { periodId });

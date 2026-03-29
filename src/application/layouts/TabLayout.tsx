@@ -1,14 +1,14 @@
-import { useEffect } from 'react';
-import { Tabs } from 'expo-router';
-import { useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useAppGateContext } from '@app/providers/AppGateProvider';
+import { Tabs } from 'expo-router';
+import { useEffect } from 'react';
+import { useColorScheme } from 'react-native';
 import {
   countArchivedUnsettledPeriods,
   getLedgerPeriods,
   useLedgerTabBadgeStore,
 } from '@entities/period';
 import { Colors } from '@shared/lib/theme';
+import { useAppGateContext } from '@app/providers/AppGateProvider';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();

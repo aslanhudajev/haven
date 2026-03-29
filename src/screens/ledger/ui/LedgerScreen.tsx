@@ -1,3 +1,5 @@
+import { useFocusEffect } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -9,10 +11,7 @@ import {
   View,
   useColorScheme,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
-import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAppGateContext } from '@app/providers/AppGateProvider';
 import {
   countArchivedUnsettledPeriods,
   getLedgerPeriods,
@@ -20,13 +19,18 @@ import {
   useLedgerTabBadgeStore,
 } from '@entities/period';
 import { getPurchases } from '@entities/purchase';
-import { Card } from '@shared/ui';
-import { Colors, Spacing } from '@shared/lib/theme';
 import { formatDateRange, formatMoney } from '@shared/lib/format';
+import { Colors, Spacing } from '@shared/lib/theme';
+import { Card } from '@shared/ui';
+import { useAppGateContext } from '@app/providers/AppGateProvider';
 
 type PeriodWithTotal = Period & { totalCents: number };
 
-function ledgerStatusLabel(status: Period['status']): { text: string; settled: boolean; ongoing: boolean } {
+function ledgerStatusLabel(status: Period['status']): {
+  text: string;
+  settled: boolean;
+  ongoing: boolean;
+} {
   if (status === 'active') return { text: 'Ongoing', settled: false, ongoing: true };
   if (status === 'resolved') return { text: 'Settled', settled: true, ongoing: false };
   return { text: 'Unsettled', settled: false, ongoing: false };
@@ -109,7 +113,11 @@ export default function LedgerScreen() {
       <ScrollView
         contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.xl }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.textSecondary} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.textSecondary}
+          />
         }
       >
         <View style={styles.list}>

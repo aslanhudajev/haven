@@ -3,7 +3,7 @@
  * wait for the previous task to finish — avoids duplicate side effects (e.g.
  * period rotation) under React Strict Mode double-mount or parallel effects.
  */
-import { periodLog } from '@shared/lib/debug/periodLog';
+import { periodLog } from '@shared/lib/debug';
 
 const tails = new Map<string, Promise<unknown>>();
 

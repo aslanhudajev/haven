@@ -1,3 +1,4 @@
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState, useRef, useEffect } from 'react';
 import {
   ActivityIndicator,
@@ -11,9 +12,9 @@ import {
   View,
   useColorScheme,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { verifyOtp, requestOtp } from '@entities/auth';
+import { getErrorMessage } from '@shared/lib/errors';
 import { Colors } from '@shared/lib/theme';
 
 const OTP_LENGTH = 6;
@@ -43,8 +44,8 @@ export default function VerifyOtpScreen() {
       setVerifying(true);
       try {
         await verifyOtp(email!, cleaned);
-      } catch (err: any) {
-        Alert.alert('Invalid code', err.message ?? 'Please try again');
+      } catch (err: unknown) {
+        Alert.alert('Invalid code', getErrorMessage(err, 'Please try again'));
         setCode('');
         inputRef.current?.focus();
       } finally {
@@ -58,8 +59,8 @@ export default function VerifyOtpScreen() {
     try {
       await requestOtp(email!);
       Alert.alert('Code sent', 'Check your email for a new code');
-    } catch (err: any) {
-      Alert.alert('Error', err.message ?? 'Could not resend code');
+    } catch (err: unknown) {
+      Alert.alert('Error', getErrorMessage(err, 'Could not resend code'));
     } finally {
       setResending(false);
     }
@@ -102,9 +103,7 @@ export default function VerifyOtpScreen() {
           autoComplete="one-time-code"
         />
 
-        {verifying && (
-          <ActivityIndicator style={styles.spinner} color={theme.accent} />
-        )}
+        {verifying && <ActivityIndicator style={styles.spinner} color={theme.accent} />}
 
         <Pressable
           style={({ pressed }) => [styles.resendButton, pressed && styles.resendPressed]}

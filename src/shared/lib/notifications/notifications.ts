@@ -3,9 +3,10 @@ import { Platform } from 'react-native';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -31,15 +32,10 @@ export async function registerForPushNotifications(): Promise<string | null> {
   return tokenData.data;
 }
 
-export async function schedulePeriodEndNotification(
-  periodName: string,
-  endsAt: Date,
-) {
+/** Prefer server-side Expo push; local scheduling can double-notify if both are enabled. */
+export async function schedulePeriodEndNotification(periodName: string, endsAt: Date) {
   const now = new Date();
-  const secondsUntilEnd = Math.max(
-    Math.floor((endsAt.getTime() - now.getTime()) / 1000),
-    10,
-  );
+  const secondsUntilEnd = Math.max(Math.floor((endsAt.getTime() - now.getTime()) / 1000), 10);
 
   await Notifications.scheduleNotificationAsync({
     content: {

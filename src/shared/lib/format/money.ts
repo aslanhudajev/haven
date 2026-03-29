@@ -2,11 +2,7 @@
  * Formats an amount stored in cents (öre) to a human-readable currency string.
  * E.g. 350000 → "3 500 kr" (SEK) or "3 500,00 kr" if `showDecimals` is true.
  */
-export function formatMoney(
-  amountCents: number,
-  currency = 'SEK',
-  showDecimals = false,
-): string {
+export function formatMoney(amountCents: number, currency = 'SEK', showDecimals = false): string {
   const major = amountCents / 100;
 
   if (currency === 'SEK') {

@@ -7,10 +7,7 @@ type UpdateProfileInput = {
   onboarding_completed?: boolean;
 };
 
-export async function updateProfile(
-  userId: string,
-  input: UpdateProfileInput,
-): Promise<Profile> {
+export async function updateProfile(userId: string, input: UpdateProfileInput): Promise<Profile> {
   const { data, error } = await supabase
     .from('profiles')
     .update(input)

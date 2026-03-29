@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { usePurchaseStore, type Purchase } from '@entities/purchase';
-import { Colors, Spacing } from '@shared/lib/theme';
 import { formatMoney } from '@shared/lib/format';
+import { Colors, Spacing, type ThemeColors } from '@shared/lib/theme';
 
 type Props = {
   currentUserId: string;
@@ -19,7 +19,7 @@ function PurchaseRow({
   item: Purchase;
   currentUserId: string;
   currency: string;
-  theme: (typeof Colors)['dark'];
+  theme: ThemeColors;
   onPress?: () => void;
 }) {
   const isOwn = item.user_id === currentUserId;
@@ -35,9 +35,7 @@ function PurchaseRow({
       onPress={onPress}
     >
       <View style={styles.rowLeft}>
-        <Text style={[styles.rowName, { color: theme.text }]}>
-          {isOwn ? 'You' : name}
-        </Text>
+        <Text style={[styles.rowName, { color: theme.text }]}>{isOwn ? 'You' : name}</Text>
         {item.description ? (
           <Text style={[styles.rowDesc, { color: theme.textSecondary }]} numberOfLines={1}>
             {item.description}
@@ -54,11 +52,7 @@ function PurchaseRow({
   );
 }
 
-export function PurchaseListWidget({
-  currentUserId,
-  currency = 'SEK',
-  onPressPurchase,
-}: Props) {
+export function PurchaseListWidget({ currentUserId, currency = 'SEK', onPressPurchase }: Props) {
   const purchases = usePurchaseStore((s) => s.purchases);
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
@@ -95,7 +89,12 @@ export function PurchaseListWidget({
 
 const styles = StyleSheet.create({
   list: { paddingHorizontal: Spacing.lg },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14 },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 14,
+  },
   rowPressed: { opacity: 0.6 },
   rowLeft: { flex: 1, marginRight: 16 },
   rowName: { fontSize: 16, fontWeight: '500' },

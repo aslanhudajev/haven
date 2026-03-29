@@ -1,6 +1,6 @@
 import { supabase } from '@shared/config/supabase';
+import { periodLog } from '@shared/lib/debug';
 import { formatPeriodName, toLocalCalendarISODate } from '@shared/lib/format';
-import { periodLog } from '@shared/lib/debug/periodLog';
 import {
   computeCurrentPeriodDates,
   computeNextPeriodDates,
@@ -23,9 +23,7 @@ export async function createPeriod(input: CreatePeriodInput): Promise<Period> {
     : computeCurrentPeriodDates(cadence, anchorDay);
 
   const name =
-    cadence === 'monthly'
-      ? formatPeriodName(startsAt)
-      : formatPeriodName(startsAt, endsAt);
+    cadence === 'monthly' ? formatPeriodName(startsAt) : formatPeriodName(startsAt, endsAt);
 
   const starts_at = toLocalCalendarISODate(startsAt);
   const ends_at = toLocalCalendarISODate(endsAt);
@@ -52,7 +50,11 @@ export async function createPeriod(input: CreatePeriodInput): Promise<Period> {
     .single();
 
   if (error) {
-    periodLog('createPeriod.error', { familyId, code: (error as { code?: string }).code, message: error.message });
+    periodLog('createPeriod.error', {
+      familyId,
+      code: (error as { code?: string }).code,
+      message: error.message,
+    });
     throw error;
   }
 

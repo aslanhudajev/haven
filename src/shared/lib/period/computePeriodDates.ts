@@ -26,7 +26,7 @@ function startOfDay(date: Date): Date {
 
 function computeMonthly(anchorDay: number, ref: Date): PeriodDates {
   const day = Math.min(anchorDay, 28);
-  let startsAt = new Date(ref.getFullYear(), ref.getMonth(), day);
+  const startsAt = new Date(ref.getFullYear(), ref.getMonth(), day);
 
   if (ref.getDate() < day) {
     startsAt.setMonth(startsAt.getMonth() - 1);
@@ -41,7 +41,7 @@ function computeMonthly(anchorDay: number, ref: Date): PeriodDates {
 function computeWeekly(anchorDay: number, ref: Date): PeriodDates {
   const anchor = Math.max(1, Math.min(anchorDay, 7));
   const current = dayOfWeek(ref);
-  const diff = ((current - anchor) % 7 + 7) % 7;
+  const diff = (((current - anchor) % 7) + 7) % 7;
   const startsAt = addDays(ref, -diff);
   const endsAt = addDays(startsAt, 6);
 
@@ -51,7 +51,7 @@ function computeWeekly(anchorDay: number, ref: Date): PeriodDates {
 function computeBiweekly(anchorDay: number, ref: Date): PeriodDates {
   const anchor = Math.max(1, Math.min(anchorDay, 7));
   const epochDow = dayOfWeek(EPOCH);
-  const epochAnchorOffset = ((anchor - epochDow) % 7 + 7) % 7;
+  const epochAnchorOffset = (((anchor - epochDow) % 7) + 7) % 7;
   const firstAnchor = addDays(EPOCH, epochAnchorOffset);
 
   const totalDays = diffDays(startOfDay(ref), firstAnchor);

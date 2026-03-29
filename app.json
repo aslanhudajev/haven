@@ -40,6 +40,13 @@
           }
         }
       ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#208AEF"
+        }
+      ],
       "expo-sqlite"
     ],
     "experiments": {

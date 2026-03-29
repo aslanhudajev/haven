@@ -15,7 +15,7 @@ export function inviteDeepLink(code: string) {
 
 /** Reads welcomed flag; migrates legacy `haven:` key once if present. */
 export async function loadWelcomedFlag(): Promise<string | null> {
-  let v = await AsyncStorage.getItem(APP_STORAGE_WELCOMED_KEY);
+  const v = await AsyncStorage.getItem(APP_STORAGE_WELCOMED_KEY);
   if (v !== null) return v;
   const old = await AsyncStorage.getItem(LEGACY_WELCOMED);
   if (old !== null) {
@@ -28,7 +28,7 @@ export async function loadWelcomedFlag(): Promise<string | null> {
 
 /** Reads pending invite code; migrates legacy `haven:` key once if present. */
 export async function loadPendingInviteCode(): Promise<string | null> {
-  let v = await AsyncStorage.getItem(APP_STORAGE_PENDING_INVITE_KEY);
+  const v = await AsyncStorage.getItem(APP_STORAGE_PENDING_INVITE_KEY);
   if (v !== null) return v;
   const old = await AsyncStorage.getItem(LEGACY_PENDING_INVITE);
   if (old !== null) {

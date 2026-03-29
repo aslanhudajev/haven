@@ -1,17 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  useColorScheme,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Colors } from '@shared/lib/theme';
-import { useAuth } from '@app/providers/AuthProvider';
-import { useAppGateContext } from '@app/providers/AppGateProvider';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   REVENUECAT_ENABLED,
   checkSubscription,
@@ -19,7 +9,10 @@ import {
   syncRevenueCatSubscription,
 } from '@entities/subscription';
 import { supabase } from '@shared/config/supabase';
+import { Colors } from '@shared/lib/theme';
 import { Button } from '@shared/ui';
+import { useAppGateContext } from '@app/providers/AppGateProvider';
+import { useAuth } from '@app/providers/AuthProvider';
 
 const ACCENT = '#208AEF';
 

@@ -17,9 +17,7 @@ export async function getPurchases(periodId: string): Promise<Purchase[]> {
     .select('id, full_name')
     .in('id', userIds);
 
-  const profileMap = new Map(
-    (profiles ?? []).map((p) => [p.id, { full_name: p.full_name }]),
-  );
+  const profileMap = new Map((profiles ?? []).map((p) => [p.id, { full_name: p.full_name }]));
 
   return purchases.map((row) => ({
     ...row,

@@ -27,9 +27,7 @@ export async function getReceiptSignedUrl(
   const path = storagePathFromReceiptValue(receiptUrlOrPath);
   if (!path) return null;
 
-  const { data, error } = await supabase.storage
-    .from('receipts')
-    .createSignedUrl(path, expiresIn);
+  const { data, error } = await supabase.storage.from('receipts').createSignedUrl(path, expiresIn);
 
   if (error || !data?.signedUrl) return null;
   return data.signedUrl;

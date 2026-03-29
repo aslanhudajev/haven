@@ -1,14 +1,15 @@
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
+import { useForm, Controller } from 'react-hook-form';
 import { Alert, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { updateProfile } from '@entities/profile';
-import { useAuth } from '@app/providers/AuthProvider';
-import { useAppGateContext } from '@app/providers/AppGateProvider';
-import { Button, Input } from '@shared/ui';
+import { getErrorMessage } from '@shared/lib/errors';
 import { Colors, Spacing } from '@shared/lib/theme';
+import { Button, Input } from '@shared/ui';
+import { useAppGateContext } from '@app/providers/AppGateProvider';
+import { useAuth } from '@app/providers/AuthProvider';
 
 const schema = z.object({
   fullName: z.string().min(1, 'Name is required').max(100),
@@ -42,8 +43,8 @@ export default function OnboardingProfileScreen() {
         onboarding_completed: true,
       });
       refresh();
-    } catch (err: any) {
-      Alert.alert('Error', err.message ?? 'Could not save profile');
+    } catch (err: unknown) {
+      Alert.alert('Error', getErrorMessage(err, 'Could not save profile'));
     } finally {
       setLoading(false);
     }

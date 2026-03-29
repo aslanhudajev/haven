@@ -1,15 +1,6 @@
-import React, { useRef, useCallback } from 'react';
-import {
-  Dimensions,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  useColorScheme,
-} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { APP_STORAGE_WELCOMED_KEY } from '@shared/lib/storage/appStorageKeys';
+import React, { useRef, useCallback } from 'react';
+import { Dimensions, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -18,11 +9,13 @@ import Animated, {
   interpolateColor,
   withSpring,
   withTiming,
+  type SharedValue,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { APP_STORAGE_WELCOMED_KEY } from '@shared/lib/storage';
 import { Colors } from '@shared/lib/theme';
 import { useAppGateContext } from '@app/providers/AppGateProvider';
-import type { ViewToken } from 'react-native';
+import type { ViewToken, FlatList } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -56,7 +49,7 @@ function SlideItem({
 }: {
   item: Slide;
   index: number;
-  scrollX: Animated.SharedValue<number>;
+  scrollX: SharedValue<number>;
 }) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -80,9 +73,7 @@ function SlideItem({
     <View style={styles.slide}>
       <Animated.View style={[styles.slideContent, animStyle]}>
         <Text style={styles.emoji}>{item.emoji}</Text>
-        <Text style={[styles.slideTitle, { color: isDark ? '#fff' : '#000' }]}>
-          {item.title}
-        </Text>
+        <Text style={[styles.slideTitle, { color: isDark ? '#fff' : '#000' }]}>{item.title}</Text>
         <Text
           style={[
             styles.slideSubtitle,
@@ -96,16 +87,9 @@ function SlideItem({
   );
 }
 
-function Dot({
-  index,
-  scrollX,
-}: {
-  index: number;
-  scrollX: Animated.SharedValue<number>;
-}) {
+function Dot({ index, scrollX }: { index: number; scrollX: SharedValue<number> }) {
   const colorScheme = useColorScheme();
-  const inactiveColor =
-    colorScheme === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)';
+  const inactiveColor = colorScheme === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)';
 
   const animStyle = useAnimatedStyle(() => {
     const inputRange = [
@@ -142,13 +126,11 @@ export default function WelcomeScreen() {
     },
   });
 
-  const onViewableItemsChanged = useRef(
-    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
-      if (viewableItems.length > 0) {
-        currentIndex.value = viewableItems[0].index ?? 0;
-      }
-    },
-  ).current;
+  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    if (viewableItems.length > 0) {
+      currentIndex.value = viewableItems[0].index ?? 0;
+    }
+  }).current;
 
   const handlePress = useCallback(async () => {
     if (currentIndex.value < slides.length - 1) {
@@ -182,9 +164,7 @@ export default function WelcomeScreen() {
         ref={flatListRef as React.RefObject<Animated.FlatList<Slide>>}
         data={slides}
         keyExtractor={(item) => item.id}
-        renderItem={({ item, index }) => (
-          <SlideItem item={item} index={index} scrollX={scrollX} />
-        )}
+        renderItem={({ item, index }) => <SlideItem item={item} index={index} scrollX={scrollX} />}
         horizontal
         pagingEnabled
         bounces={false}
@@ -204,12 +184,8 @@ export default function WelcomeScreen() {
 
         <Pressable onPress={handlePress}>
           <Animated.View style={[styles.button, buttonWidthStyle]}>
-            <Animated.Text style={[styles.buttonText, buttonTextStyle]}>
-              Get Started
-            </Animated.Text>
-            <Animated.Text style={[styles.arrow, arrowStyle]}>
-              →
-            </Animated.Text>
+            <Animated.Text style={[styles.buttonText, buttonTextStyle]}>Get Started</Animated.Text>
+            <Animated.Text style={[styles.arrow, arrowStyle]}>→</Animated.Text>
           </Animated.View>
         </Pressable>
       </View>
@@ -222,12 +198,30 @@ const styles = StyleSheet.create({
   slide: { width: SCREEN_WIDTH, flex: 1, justifyContent: 'center', alignItems: 'center' },
   slideContent: { alignItems: 'center', paddingHorizontal: 40 },
   emoji: { fontSize: 80, marginBottom: 32 },
-  slideTitle: { fontSize: 30, fontWeight: '700', letterSpacing: -0.5, textAlign: 'center', marginBottom: 12 },
+  slideTitle: {
+    fontSize: 30,
+    fontWeight: '700',
+    letterSpacing: -0.5,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
   slideSubtitle: { fontSize: 17, lineHeight: 26, textAlign: 'center' },
-  footer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24 },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
   pagination: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { height: 8, borderRadius: 4 },
-  button: { height: 56, borderRadius: 28, backgroundColor: '#208AEF', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  button: {
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#208AEF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
   buttonText: { color: '#fff', fontSize: 17, fontWeight: '600' },
   arrow: { color: '#fff', fontSize: 24, fontWeight: '300' },
 });

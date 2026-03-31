@@ -15,7 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { verifyOtp, requestOtp } from '@entities/auth';
 import { getErrorMessage } from '@shared/lib/errors';
-import { Colors } from '@shared/lib/theme';
+import { Colors, Radii, fontFamily } from '@shared/lib/theme';
 
 const OTP_LENGTH = 6;
 
@@ -68,18 +68,26 @@ export default function VerifyOtpScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: theme.background }]}
+      style={[styles.container, { backgroundColor: theme.surface0 }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={[styles.content, { paddingTop: insets.top + 64 }]}>
         <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Text style={[styles.backText, { color: theme.accent }]}>← Back</Text>
+          <Text
+            style={[styles.backText, { color: theme.accent, fontFamily: fontFamily.bodyMedium }]}
+          >
+            ← Back
+          </Text>
         </Pressable>
 
-        <Text style={[styles.title, { color: theme.text }]}>Check your email</Text>
-        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+        <Text style={[styles.title, { color: theme.text, fontFamily: fontFamily.display }]}>
+          Check your email
+        </Text>
+        <Text
+          style={[styles.subtitle, { color: theme.textSecondary, fontFamily: fontFamily.body }]}
+        >
           Enter the 6-digit code sent to{'\n'}
-          <Text style={{ color: theme.text, fontWeight: '600' }}>{email}</Text>
+          <Text style={{ color: theme.text, fontFamily: fontFamily.bodySemiBold }}>{email}</Text>
         </Text>
 
         <TextInput
@@ -88,12 +96,13 @@ export default function VerifyOtpScreen() {
             styles.input,
             {
               color: theme.text,
-              backgroundColor: theme.backgroundElement,
-              borderColor: theme.backgroundElement,
+              backgroundColor: theme.surface1,
+              borderColor: theme.borderSubtle,
+              fontFamily: fontFamily.bodySemiBold,
             },
           ]}
           placeholder="000000"
-          placeholderTextColor={theme.textSecondary}
+          placeholderTextColor={theme.textMuted}
           keyboardType="number-pad"
           maxLength={OTP_LENGTH}
           value={code}
@@ -110,7 +119,9 @@ export default function VerifyOtpScreen() {
           onPress={handleResend}
           disabled={resending}
         >
-          <Text style={[styles.resendText, { color: theme.textSecondary }]}>
+          <Text
+            style={[styles.resendText, { color: theme.textSecondary, fontFamily: fontFamily.body }]}
+          >
             {resending ? 'Sending…' : 'Resend code'}
           </Text>
         </Pressable>
@@ -128,7 +139,7 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 17, lineHeight: 26, marginBottom: 32 },
   input: {
     height: 56,
-    borderRadius: 12,
+    borderRadius: Radii.md,
     paddingHorizontal: 16,
     fontSize: 28,
     fontWeight: '600',

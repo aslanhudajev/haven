@@ -8,7 +8,7 @@ import { usePurchaseStore } from '@entities/purchase';
 import { REVENUECAT_ENABLED } from '@entities/subscription';
 import { supabase } from '@shared/config/supabase';
 import { getErrorMessage } from '@shared/lib/errors';
-import { Colors, Spacing } from '@shared/lib/theme';
+import { Colors, Spacing, fontFamily } from '@shared/lib/theme';
 import { Card } from '@shared/ui';
 import { useAppGateContext } from '@app/providers/AppGateProvider';
 import { useAuth } from '@app/providers/AuthProvider';
@@ -113,18 +113,38 @@ export default function SettingsScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.surface0 }]}>
       <Card style={styles.section}>
-        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Account</Text>
-        <Text style={[styles.value, { color: theme.text }]}>{user?.email ?? '—'}</Text>
+        <Text
+          style={[
+            styles.sectionLabel,
+            { color: theme.textSecondary, fontFamily: fontFamily.bodyMedium },
+          ]}
+        >
+          Account
+        </Text>
+        <Text style={[styles.value, { color: theme.text, fontFamily: fontFamily.body }]}>
+          {user?.email ?? '—'}
+        </Text>
       </Card>
 
       {family && (
         <Pressable onPress={() => router.push('/(app)/family-settings')}>
           <Card style={styles.section}>
-            <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Family</Text>
-            <Text style={[styles.value, { color: theme.text }]}>{family.name}</Text>
-            <Text style={[styles.hint, { color: theme.accent }]}>Manage →</Text>
+            <Text
+              style={[
+                styles.sectionLabel,
+                { color: theme.textSecondary, fontFamily: fontFamily.bodyMedium },
+              ]}
+            >
+              Family
+            </Text>
+            <Text style={[styles.value, { color: theme.text, fontFamily: fontFamily.body }]}>
+              {family.name}
+            </Text>
+            <Text style={[styles.hint, { color: theme.accent, fontFamily: fontFamily.bodyMedium }]}>
+              Manage →
+            </Text>
           </Card>
         </Pressable>
       )}
@@ -133,32 +153,46 @@ export default function SettingsScreen() {
         <Pressable
           style={({ pressed }) => [
             styles.dangerButton,
-            { borderColor: '#FF3B30' },
+            { borderColor: theme.danger },
             pressed && styles.pressed,
           ]}
           onPress={handleLeaveFamily}
         >
-          <Text style={styles.dangerText}>{isOwner ? 'Delete Family' : 'Leave Family'}</Text>
+          <Text
+            style={[styles.dangerText, { color: theme.danger, fontFamily: fontFamily.bodyMedium }]}
+          >
+            {isOwner ? 'Delete Family' : 'Leave Family'}
+          </Text>
         </Pressable>
       )}
 
       <Pressable
         style={({ pressed }) => [
           styles.logoutButton,
-          { borderColor: theme.backgroundElement },
+          { borderColor: theme.borderSubtle },
           pressed && styles.pressed,
         ]}
         onPress={handleLogout}
       >
-        <Text style={styles.logoutText}>Sign Out</Text>
+        <Text
+          style={[styles.logoutText, { color: theme.danger, fontFamily: fontFamily.bodyMedium }]}
+        >
+          Sign Out
+        </Text>
       </Pressable>
 
       {__DEV__ && (
         <Pressable
-          style={({ pressed }) => [styles.devResetButton, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.devResetButton,
+            { backgroundColor: theme.accent },
+            pressed && styles.pressed,
+          ]}
           onPress={handleDevReset}
         >
-          <Text style={styles.devResetText}>DEV: Full Reset</Text>
+          <Text style={[styles.devResetText, { fontFamily: fontFamily.bodySemiBold }]}>
+            DEV: Full Reset
+          </Text>
         </Pressable>
       )}
     </View>
@@ -184,7 +218,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: Spacing.md,
   },
-  dangerText: { fontSize: 17, fontWeight: '500', color: '#FF3B30' },
+  dangerText: { fontSize: 17, fontWeight: '500' },
   logoutButton: {
     height: 48,
     borderRadius: 12,
@@ -194,11 +228,10 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
   },
   pressed: { opacity: 0.7 },
-  logoutText: { fontSize: 17, fontWeight: '500', color: '#FF3B30' },
+  logoutText: { fontSize: 17, fontWeight: '500' },
   devResetButton: {
     height: 48,
     borderRadius: 12,
-    backgroundColor: '#8B5CF6',
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: Spacing.xl,

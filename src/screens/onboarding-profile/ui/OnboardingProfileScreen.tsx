@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { z } from 'zod';
 import { updateProfile } from '@entities/profile';
 import { getErrorMessage } from '@shared/lib/errors';
-import { Colors, Spacing } from '@shared/lib/theme';
+import { Colors, Spacing, fontFamily } from '@shared/lib/theme';
 import { Button, Input } from '@shared/ui';
 import { useAppGateContext } from '@app/providers/AppGateProvider';
 import { useAuth } from '@app/providers/AuthProvider';
@@ -55,7 +55,7 @@ export default function OnboardingProfileScreen() {
       style={[
         styles.container,
         {
-          backgroundColor: theme.background,
+          backgroundColor: theme.surface0,
           paddingTop: insets.top + 24,
           paddingBottom: insets.bottom + Spacing.lg,
         },
@@ -63,8 +63,12 @@ export default function OnboardingProfileScreen() {
     >
       <View style={styles.header}>
         <Text style={styles.emoji}>👋</Text>
-        <Text style={[styles.title, { color: theme.text }]}>What should we call you?</Text>
-        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+        <Text style={[styles.title, { color: theme.text, fontFamily: fontFamily.display }]}>
+          What should we call you?
+        </Text>
+        <Text
+          style={[styles.subtitle, { color: theme.textSecondary, fontFamily: fontFamily.body }]}
+        >
           Set your display name so your family knows who you are.
         </Text>
       </View>

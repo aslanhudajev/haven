@@ -18,5 +18,5 @@
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
   ],
-  "exclude": ["node_modules", "reference_app", "supabase/functions"]
+  "exclude": ["node_modules", "reference_app", "supabase/functions", "b_7WvpNEc0Tqe-1774827248452"]
 }

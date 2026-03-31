@@ -20,7 +20,7 @@ import {
 } from '@entities/period';
 import { getPurchases } from '@entities/purchase';
 import { formatDateRange, formatMoney } from '@shared/lib/format';
-import { Colors, Spacing } from '@shared/lib/theme';
+import { Colors, Spacing, fontFamily } from '@shared/lib/theme';
 import { Card } from '@shared/ui';
 import { useAppGateContext } from '@app/providers/AppGateProvider';
 
@@ -90,7 +90,7 @@ export default function LedgerScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.centered, { backgroundColor: theme.background }]}>
+      <View style={[styles.centered, { backgroundColor: theme.surface0 }]}>
         <ActivityIndicator size="large" color={theme.accent} />
       </View>
     );
@@ -98,10 +98,17 @@ export default function LedgerScreen() {
 
   if (periods.length === 0) {
     return (
-      <View style={[styles.centered, { backgroundColor: theme.background }]}>
+      <View style={[styles.centered, { backgroundColor: theme.surface0 }]}>
         <Text style={styles.emptyEmoji}>📒</Text>
-        <Text style={[styles.emptyTitle, { color: theme.text }]}>Nothing in the ledger yet</Text>
-        <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
+        <Text style={[styles.emptyTitle, { color: theme.text, fontFamily: fontFamily.display }]}>
+          Nothing in the ledger yet
+        </Text>
+        <Text
+          style={[
+            styles.emptySubtitle,
+            { color: theme.textSecondary, fontFamily: fontFamily.body },
+          ]}
+        >
           Your current period and past periods will show up here
         </Text>
       </View>
@@ -109,15 +116,11 @@ export default function LedgerScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.surface0 }]}>
       <ScrollView
         contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.xl }}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={theme.textSecondary}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.accent} />
         }
       >
         <View style={styles.list}>
@@ -143,24 +146,37 @@ export default function LedgerScreen() {
                 <Card style={styles.periodCard}>
                   <View style={styles.periodTop}>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.periodName, { color: theme.text }]}>{p.name}</Text>
-                      <Text style={[styles.periodRange, { color: theme.textSecondary }]}>
+                      <Text
+                        style={[
+                          styles.periodName,
+                          { color: theme.text, fontFamily: fontFamily.bodySemiBold },
+                        ]}
+                      >
+                        {p.name}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.periodRange,
+                          { color: theme.textSecondary, fontFamily: fontFamily.body },
+                        ]}
+                      >
                         {formatDateRange(p.starts_at, p.ends_at)}
                       </Text>
                     </View>
                     <View
                       style={[
                         styles.badge,
-                        ongoing && { backgroundColor: `${theme.accent}22` },
-                        settled && { backgroundColor: '#34C75920' },
-                        !ongoing && !settled && { backgroundColor: theme.backgroundSelected },
+                        ongoing && { backgroundColor: theme.accentMuted },
+                        settled && { backgroundColor: `${theme.success}33` },
+                        !ongoing && !settled && { backgroundColor: theme.surface2 },
                       ]}
                     >
                       <Text
                         style={[
                           styles.badgeText,
+                          { fontFamily: fontFamily.bodySemiBold },
                           ongoing && { color: theme.accent },
-                          settled && { color: '#34C759' },
+                          settled && { color: theme.success },
                           !ongoing && !settled && { color: theme.textSecondary },
                         ]}
                       >
@@ -168,11 +184,21 @@ export default function LedgerScreen() {
                       </Text>
                     </View>
                   </View>
-                  <View style={styles.periodBottom}>
-                    <Text style={[styles.totalLabel, { color: theme.textSecondary }]}>
+                  <View style={[styles.periodBottom, { borderTopColor: theme.borderSubtle }]}>
+                    <Text
+                      style={[
+                        styles.totalLabel,
+                        { color: theme.textSecondary, fontFamily: fontFamily.bodyMedium },
+                      ]}
+                    >
                       Total spent
                     </Text>
-                    <Text style={[styles.totalAmount, { color: theme.text }]}>
+                    <Text
+                      style={[
+                        styles.totalAmount,
+                        { color: theme.text, fontFamily: fontFamily.display },
+                      ]}
+                    >
                       {formatMoney(p.totalCents)}
                     </Text>
                   </View>
@@ -205,7 +231,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(128,128,128,0.15)',
   },
   totalLabel: { fontSize: 13, fontWeight: '500', textTransform: 'uppercase' },
   totalAmount: { fontSize: 18, fontWeight: '700' },

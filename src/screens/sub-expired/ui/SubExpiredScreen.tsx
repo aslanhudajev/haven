@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { logout } from '@entities/auth';
 import { leaveFamily } from '@entities/family';
 import { getErrorMessage } from '@shared/lib/errors';
-import { Colors, Spacing } from '@shared/lib/theme';
+import { Colors, Spacing, fontFamily } from '@shared/lib/theme';
 import { Button } from '@shared/ui';
 import { useAppGateContext } from '@app/providers/AppGateProvider';
 import { useAuth } from '@app/providers/AuthProvider';
@@ -69,7 +69,7 @@ export default function SubExpiredScreen() {
       style={[
         styles.container,
         {
-          backgroundColor: theme.background,
+          backgroundColor: theme.surface0,
           paddingTop: insets.top + 24,
           paddingBottom: insets.bottom + Spacing.lg,
         },
@@ -77,8 +77,12 @@ export default function SubExpiredScreen() {
     >
       <View style={styles.content}>
         <Text style={styles.emoji}>⏸️</Text>
-        <Text style={[styles.title, { color: theme.text }]}>Subscription Expired</Text>
-        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+        <Text style={[styles.title, { color: theme.text, fontFamily: fontFamily.display }]}>
+          Subscription Expired
+        </Text>
+        <Text
+          style={[styles.subtitle, { color: theme.textSecondary, fontFamily: fontFamily.body }]}
+        >
           Your family owner's subscription has expired. Ask them to renew it to continue using
           FiftyFifty.
         </Text>

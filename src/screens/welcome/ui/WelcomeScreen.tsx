@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useRef, useCallback } from 'react';
 import { Dimensions, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import Animated, {
@@ -13,7 +14,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { APP_STORAGE_WELCOMED_KEY } from '@shared/lib/storage';
-import { Colors } from '@shared/lib/theme';
+import { Colors, fontFamily } from '@shared/lib/theme';
 import { useAppGateContext } from '@app/providers/AppGateProvider';
 import type { ViewToken, FlatList } from 'react-native';
 
@@ -46,14 +47,15 @@ function SlideItem({
   item,
   index,
   scrollX,
+  textColor,
+  subtitleColor,
 }: {
   item: Slide;
   index: number;
   scrollX: SharedValue<number>;
+  textColor: string;
+  subtitleColor: string;
 }) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-
   const animStyle = useAnimatedStyle(() => {
     const inputRange = [
       (index - 1) * SCREEN_WIDTH,
@@ -73,13 +75,10 @@ function SlideItem({
     <View style={styles.slide}>
       <Animated.View style={[styles.slideContent, animStyle]}>
         <Text style={styles.emoji}>{item.emoji}</Text>
-        <Text style={[styles.slideTitle, { color: isDark ? '#fff' : '#000' }]}>{item.title}</Text>
-        <Text
-          style={[
-            styles.slideSubtitle,
-            { color: isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)' },
-          ]}
-        >
+        <Text style={[styles.slideTitle, { color: textColor, fontFamily: fontFamily.display }]}>
+          {item.title}
+        </Text>
+        <Text style={[styles.slideSubtitle, { color: subtitleColor, fontFamily: fontFamily.body }]}>
           {item.subtitle}
         </Text>
       </Animated.View>
@@ -87,10 +86,17 @@ function SlideItem({
   );
 }
 
-function Dot({ index, scrollX }: { index: number; scrollX: SharedValue<number> }) {
-  const colorScheme = useColorScheme();
-  const inactiveColor = colorScheme === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)';
-
+function Dot({
+  index,
+  scrollX,
+  activeColor,
+  inactiveColor,
+}: {
+  index: number;
+  scrollX: SharedValue<number>;
+  activeColor: string;
+  inactiveColor: string;
+}) {
   const animStyle = useAnimatedStyle(() => {
     const inputRange = [
       (index - 1) * SCREEN_WIDTH,
@@ -101,7 +107,7 @@ function Dot({ index, scrollX }: { index: number; scrollX: SharedValue<number> }
       width: interpolate(scrollX.value, inputRange, [8, 28, 8], 'clamp'),
       backgroundColor: interpolateColor(scrollX.value, inputRange, [
         inactiveColor,
-        Colors.dark.accent,
+        activeColor,
         inactiveColor,
       ]),
     };
@@ -159,12 +165,26 @@ export default function WelcomeScreen() {
   }));
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={styles.container}>
+      <LinearGradient
+        colors={[theme.heroGradientStart, theme.heroGradientMid]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0.85, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
       <Animated.FlatList
         ref={flatListRef as React.RefObject<Animated.FlatList<Slide>>}
         data={slides}
         keyExtractor={(item) => item.id}
-        renderItem={({ item, index }) => <SlideItem item={item} index={index} scrollX={scrollX} />}
+        renderItem={({ item, index }) => (
+          <SlideItem
+            item={item}
+            index={index}
+            scrollX={scrollX}
+            textColor="#FFFFFF"
+            subtitleColor="rgba(255,255,255,0.82)"
+          />
+        )}
         horizontal
         pagingEnabled
         bounces={false}
@@ -178,14 +198,28 @@ export default function WelcomeScreen() {
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 24) + 16 }]}>
         <View style={styles.pagination}>
           {slides.map((_, i) => (
-            <Dot key={i} index={i} scrollX={scrollX} />
+            <Dot
+              key={i}
+              index={i}
+              scrollX={scrollX}
+              activeColor="#FFFFFF"
+              inactiveColor="rgba(255,255,255,0.4)"
+            />
           ))}
         </View>
 
         <Pressable onPress={handlePress}>
-          <Animated.View style={[styles.button, buttonWidthStyle]}>
-            <Animated.Text style={[styles.buttonText, buttonTextStyle]}>Get Started</Animated.Text>
-            <Animated.Text style={[styles.arrow, arrowStyle]}>→</Animated.Text>
+          <Animated.View
+            style={[styles.button, buttonWidthStyle, { backgroundColor: theme.surface1 }]}
+          >
+            <Animated.Text
+              style={[styles.buttonText, buttonTextStyle, { fontFamily: fontFamily.bodySemiBold }]}
+            >
+              Get Started
+            </Animated.Text>
+            <Animated.Text style={[styles.arrow, arrowStyle, { fontFamily: fontFamily.body }]}>
+              →
+            </Animated.Text>
           </Animated.View>
         </Pressable>
       </View>
@@ -195,6 +229,7 @@ export default function WelcomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  listTransparent: { flex: 1, backgroundColor: 'transparent' },
   slide: { width: SCREEN_WIDTH, flex: 1, justifyContent: 'center', alignItems: 'center' },
   slideContent: { alignItems: 'center', paddingHorizontal: 40 },
   emoji: { fontSize: 80, marginBottom: 32 },
@@ -217,11 +252,10 @@ const styles = StyleSheet.create({
   button: {
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#208AEF',
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
   },
-  buttonText: { color: '#fff', fontSize: 17, fontWeight: '600' },
-  arrow: { color: '#fff', fontSize: 24, fontWeight: '300' },
+  buttonText: { fontSize: 17, fontWeight: '600' },
+  arrow: { fontSize: 24, fontWeight: '300' },
 });

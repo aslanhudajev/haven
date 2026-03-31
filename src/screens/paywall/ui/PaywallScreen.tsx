@@ -1,3 +1,4 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
@@ -11,12 +12,11 @@ import {
   syncRevenueCatSubscription,
 } from '@entities/subscription';
 import { supabase } from '@shared/config/supabase';
-import { Colors } from '@shared/lib/theme';
+import { Colors, Radii, fontFamily } from '@shared/lib/theme';
 import { Button } from '@shared/ui';
 import { useAppGateContext } from '@app/providers/AppGateProvider';
 import { useAuth } from '@app/providers/AuthProvider';
 
-const ACCENT = '#208AEF';
 const PAYWALL_LOG = '[Haven:paywall]';
 
 function pwLog(...args: unknown[]) {
@@ -25,7 +25,8 @@ function pwLog(...args: unknown[]) {
 
 export default function PaywallScreen() {
   const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
+  const scheme = colorScheme === 'dark' ? 'dark' : 'light';
+  const theme = Colors[scheme];
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useAuth();
@@ -76,7 +77,11 @@ export default function PaywallScreen() {
                 .from('families')
                 .update({ is_active: true, max_members: maxMembers })
                 .eq('id', owned.id);
-              pwLog('Supabase families update', { familyId: owned.id, maxMembers, error: upErr?.message ?? null });
+              pwLog('Supabase families update', {
+                familyId: owned.id,
+                maxMembers,
+                error: upErr?.message ?? null,
+              });
             }
           }
         }
@@ -112,7 +117,9 @@ export default function PaywallScreen() {
     try {
       const RevenueCatUI = (await import('react-native-purchases-ui')).default;
       const { PAYWALL_RESULT } = await import('react-native-purchases-ui');
-      pwLog('presentPaywallIfNeeded start', { requiredEntitlementIdentifier: REQUIRED_ENTITLEMENT_ID });
+      pwLog('presentPaywallIfNeeded start', {
+        requiredEntitlementIdentifier: REQUIRED_ENTITLEMENT_ID,
+      });
       const result = await RevenueCatUI.presentPaywallIfNeeded({
         requiredEntitlementIdentifier: REQUIRED_ENTITLEMENT_ID,
       });
@@ -170,99 +177,153 @@ export default function PaywallScreen() {
     { icon: '💎', label: 'Support indie development' },
   ];
 
+  const onGradient = scheme === 'dark' ? '#F8FAFC' : '#FFFFFF';
+  const onGradientMuted = scheme === 'dark' ? 'rgba(248,250,252,0.75)' : 'rgba(255,255,255,0.85)';
+
   return (
-    <View
-      style={[
-        styles.container,
-        {
-          backgroundColor: theme.background,
-          paddingTop: insets.top + 24,
-          paddingBottom: Math.max(insets.bottom, 24),
-        },
-      ]}
-    >
-      <View style={styles.header}>
-        <Text style={styles.headerEmoji}>✨</Text>
-        <Text style={[styles.title, { color: theme.text }]}>
-          {isRenewal ? 'Renew Subscription' : 'Unlock FiftyFifty'}
-        </Text>
-        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-          {isRenewal
-            ? 'Your subscription has expired. Renew to continue.'
-            : 'Subscribe to get full access'}
-        </Text>
-      </View>
+    <View style={styles.fill}>
+      <LinearGradient
+        colors={[theme.heroGradientStart, theme.heroGradientMid]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0.85, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View
+        style={[
+          styles.container,
+          {
+            paddingTop: insets.top + 24,
+            paddingBottom: Math.max(insets.bottom, 24),
+          },
+        ]}
+      >
+        <View style={styles.header}>
+          <Text style={styles.headerEmoji}>✨</Text>
+          <Text style={[styles.title, { color: onGradient, fontFamily: fontFamily.display }]}>
+            {isRenewal ? 'Renew Subscription' : 'Unlock FiftyFifty'}
+          </Text>
+          <Text style={[styles.subtitle, { color: onGradientMuted, fontFamily: fontFamily.body }]}>
+            {isRenewal
+              ? 'Your subscription has expired. Renew to continue.'
+              : 'Subscribe to get full access'}
+          </Text>
+        </View>
 
-      <View style={styles.features}>
-        {features.map((f) => (
-          <View key={f.label} style={styles.featureRow}>
-            <Text style={styles.featureIcon}>{f.icon}</Text>
-            <Text style={[styles.featureLabel, { color: theme.text }]}>{f.label}</Text>
-          </View>
-        ))}
-      </View>
-
-      <View style={styles.actions}>
-        {REVENUECAT_ENABLED ? (
-          <>
-            <Pressable
-              style={({ pressed }) => [styles.mainButton, pressed && styles.buttonPressed]}
-              onPress={presentPaywall}
-            >
-              <Text style={styles.mainButtonText}>View Plans</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [styles.restoreButton, pressed && styles.buttonPressed]}
-              onPress={handleRestore}
-              disabled={restoring}
-            >
-              {restoring ? (
-                <ActivityIndicator size="small" color={theme.textSecondary} />
-              ) : (
-                <Text style={[styles.restoreText, { color: theme.textSecondary }]}>
-                  Restore Purchases
-                </Text>
-              )}
-            </Pressable>
-            {isRenewal && (
-              <Pressable
-                style={({ pressed }) => [styles.restoreButton, pressed && styles.buttonPressed]}
-                onPress={() => router.push('/(app)/(tabs)/settings')}
+        <View
+          style={[
+            styles.featureCard,
+            { backgroundColor: theme.surface1, borderColor: theme.listDivider },
+          ]}
+        >
+          {features.map((f) => (
+            <View key={f.label} style={styles.featureRow}>
+              <Text style={styles.featureIcon}>{f.icon}</Text>
+              <Text
+                style={[
+                  styles.featureLabel,
+                  { color: theme.text, fontFamily: fontFamily.bodyMedium },
+                ]}
               >
-                <Text style={[styles.restoreText, { color: theme.textSecondary }]}>
-                  Family & account settings
+                {f.label}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.actions}>
+          {REVENUECAT_ENABLED ? (
+            <>
+              <Pressable
+                style={({ pressed }) => [styles.mainButton, pressed && styles.buttonPressed]}
+                onPress={presentPaywall}
+              >
+                <LinearGradient
+                  colors={[theme.progressGradientStart, theme.progressGradientEnd]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.mainButtonGradient}
+                />
+                <Text style={[styles.mainButtonText, { fontFamily: fontFamily.bodySemiBold }]}>
+                  View Plans
                 </Text>
               </Pressable>
-            )}
-          </>
-        ) : (
-          <Button title="Continue (dev)" onPress={handleDevContinue} />
-        )}
+              <Pressable
+                style={({ pressed }) => [styles.restoreButton, pressed && styles.buttonPressed]}
+                onPress={handleRestore}
+                disabled={restoring}
+              >
+                {restoring ? (
+                  <ActivityIndicator size="small" color={onGradientMuted} />
+                ) : (
+                  <Text
+                    style={[
+                      styles.restoreText,
+                      { color: onGradientMuted, fontFamily: fontFamily.body },
+                    ]}
+                  >
+                    Restore Purchases
+                  </Text>
+                )}
+              </Pressable>
+              {isRenewal && (
+                <Pressable
+                  style={({ pressed }) => [styles.restoreButton, pressed && styles.buttonPressed]}
+                  onPress={() => router.push('/(app)/(tabs)/settings')}
+                >
+                  <Text
+                    style={[
+                      styles.restoreText,
+                      { color: onGradientMuted, fontFamily: fontFamily.body },
+                    ]}
+                  >
+                    Family & account settings
+                  </Text>
+                </Pressable>
+              )}
+            </>
+          ) : (
+            <Button title="Continue (dev)" onPress={handleDevContinue} />
+          )}
+        </View>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  fill: { flex: 1 },
   container: { flex: 1, paddingHorizontal: 24 },
-  header: { alignItems: 'center', marginTop: 48, marginBottom: 48 },
-  headerEmoji: { fontSize: 56, marginBottom: 20 },
-  title: { fontSize: 30, fontWeight: '700', letterSpacing: -0.5, marginBottom: 8 },
+  header: { alignItems: 'center', marginTop: 32, marginBottom: 28 },
+  headerEmoji: { fontSize: 56, marginBottom: 16 },
+  title: { fontSize: 30, letterSpacing: -0.5, marginBottom: 8, textAlign: 'center' },
   subtitle: { fontSize: 17, lineHeight: 24, textAlign: 'center' },
-  features: { gap: 20, marginBottom: 48 },
-  featureRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  featureIcon: { fontSize: 28 },
-  featureLabel: { fontSize: 17, fontWeight: '500' },
+  featureCard: {
+    borderRadius: Radii.xl,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    marginBottom: 32,
+  },
+  featureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+  },
+  featureIcon: { fontSize: 26 },
+  featureLabel: { fontSize: 16, flex: 1 },
   actions: { marginTop: 'auto', gap: 12, paddingBottom: 16 },
   mainButton: {
-    backgroundColor: ACCENT,
     height: 56,
-    borderRadius: 16,
+    borderRadius: Radii.lg,
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
   },
-  mainButtonText: { color: '#fff', fontSize: 17, fontWeight: '600' },
+  mainButtonGradient: { ...StyleSheet.absoluteFillObject },
+  mainButtonText: { color: '#FFFFFF', fontSize: 17 },
   restoreButton: { height: 44, justifyContent: 'center', alignItems: 'center' },
   restoreText: { fontSize: 15 },
-  buttonPressed: { opacity: 0.7 },
+  buttonPressed: { opacity: 0.85 },
 });

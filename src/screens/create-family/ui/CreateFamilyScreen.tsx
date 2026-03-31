@@ -20,7 +20,7 @@ import { periodLog } from '@shared/lib/debug';
 import { getErrorMessage } from '@shared/lib/errors';
 import { toCents } from '@shared/lib/format';
 import type { Cadence } from '@shared/lib/period';
-import { Colors, Spacing, type ThemeColors } from '@shared/lib/theme';
+import { Colors, Spacing, fontFamily, type ThemeColors } from '@shared/lib/theme';
 import { Button, Input } from '@shared/ui';
 import { useAppGateContext } from '@app/providers/AppGateProvider';
 import { useAuth } from '@app/providers/AuthProvider';
@@ -140,7 +140,7 @@ export default function CreateFamilyScreen() {
       style={[
         styles.container,
         {
-          backgroundColor: theme.background,
+          backgroundColor: theme.surface0,
           paddingTop: insets.top + 24,
           paddingBottom: insets.bottom + Spacing.lg,
         },
@@ -187,8 +187,15 @@ export default function CreateFamilyScreen() {
         />
 
         <View style={styles.section}>
-          <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Budget cycle</Text>
-          <View style={[styles.segmented, { backgroundColor: theme.backgroundElement }]}>
+          <Text
+            style={[
+              styles.sectionLabel,
+              { color: theme.textSecondary, fontFamily: fontFamily.bodyMedium },
+            ]}
+          >
+            Budget cycle
+          </Text>
+          <View style={[styles.segmented, { backgroundColor: theme.surface2 }]}>
             {CADENCES.map((c) => (
               <Pressable
                 key={c.value}
@@ -202,7 +209,13 @@ export default function CreateFamilyScreen() {
                 }}
               >
                 <Text
-                  style={[styles.segmentText, { color: cadence === c.value ? '#fff' : theme.text }]}
+                  style={[
+                    styles.segmentText,
+                    {
+                      color: cadence === c.value ? '#FFFFFF' : theme.text,
+                      fontFamily: fontFamily.bodySemiBold,
+                    },
+                  ]}
                 >
                   {c.label}
                 </Text>
@@ -212,7 +225,12 @@ export default function CreateFamilyScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
+          <Text
+            style={[
+              styles.sectionLabel,
+              { color: theme.textSecondary, fontFamily: fontFamily.bodyMedium },
+            ]}
+          >
             {isMonthly ? 'Cycle starts on day' : 'Cycle starts on'}
           </Text>
           {isMonthly ? (
@@ -278,13 +296,17 @@ function MonthDayPicker({
         return (
           <Pressable
             key={d}
-            style={[
-              styles.dayCell,
-              { backgroundColor: active ? theme.accent : theme.backgroundElement },
-            ]}
+            style={[styles.dayCell, { backgroundColor: active ? theme.accent : theme.surface2 }]}
             onPress={() => onChange(d)}
           >
-            <Text style={[styles.dayCellText, { color: active ? '#fff' : theme.text }]}>{d}</Text>
+            <Text
+              style={[
+                styles.dayCellText,
+                { color: active ? '#FFFFFF' : theme.text, fontFamily: fontFamily.bodySemiBold },
+              ]}
+            >
+              {d}
+            </Text>
           </Pressable>
         );
       })}

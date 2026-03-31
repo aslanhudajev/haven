@@ -24,7 +24,7 @@ import { getErrorMessage } from '@shared/lib/errors';
 import { toCents, fromCents, formatMoney } from '@shared/lib/format';
 import type { Cadence } from '@shared/lib/period';
 import { inviteDeepLink } from '@shared/lib/storage';
-import { Colors, Spacing, type ThemeColors } from '@shared/lib/theme';
+import { Colors, Spacing, fontFamily, type ThemeColors } from '@shared/lib/theme';
 import { Button, Input, Card } from '@shared/ui';
 import { useAppGateContext } from '@app/providers/AppGateProvider';
 import { useAuth } from '@app/providers/AuthProvider';
@@ -56,14 +56,16 @@ export default function FamilySettingsScreen() {
 
   if (!gateFamily) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <Text style={[styles.empty, { color: theme.textSecondary }]}>No family found</Text>
+      <View style={[styles.container, { backgroundColor: theme.surface0 }]}>
+        <Text style={[styles.empty, { color: theme.textSecondary, fontFamily: fontFamily.body }]}>
+          No family found
+        </Text>
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.surface0 }]}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.xl }}
@@ -185,8 +187,20 @@ function MembersSection({
   return (
     <Card style={styles.section}>
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>Members</Text>
-        <Text style={[styles.memberCount, { color: theme.textSecondary }]}>
+        <Text
+          style={[
+            styles.sectionTitle,
+            { color: theme.textSecondary, fontFamily: fontFamily.bodyMedium },
+          ]}
+        >
+          Members
+        </Text>
+        <Text
+          style={[
+            styles.memberCount,
+            { color: theme.textSecondary, fontFamily: fontFamily.bodySemiBold },
+          ]}
+        >
           {members.length} / {family.max_members}
         </Text>
       </View>
@@ -195,22 +209,29 @@ function MembersSection({
         return (
           <View key={m.id} style={styles.memberRow}>
             <View style={styles.memberInfo}>
-              <Text style={[styles.memberName, { color: theme.text }]}>
+              <Text
+                style={[
+                  styles.memberName,
+                  { color: theme.text, fontFamily: fontFamily.bodyMedium },
+                ]}
+              >
                 {m.profile?.full_name || 'Anonymous'}
               </Text>
               <View
                 style={[
                   styles.roleBadge,
                   {
-                    backgroundColor:
-                      m.role === 'owner' ? theme.accent + '18' : theme.backgroundElement,
+                    backgroundColor: m.role === 'owner' ? theme.accentMuted : theme.surface2,
                   },
                 ]}
               >
                 <Text
                   style={[
                     styles.roleText,
-                    { color: m.role === 'owner' ? theme.accent : theme.textSecondary },
+                    {
+                      color: m.role === 'owner' ? theme.accent : theme.textSecondary,
+                      fontFamily: fontFamily.bodySemiBold,
+                    },
                   ]}
                 >
                   {m.role}
@@ -220,10 +241,24 @@ function MembersSection({
             {canManage && (
               <View style={styles.memberActions}>
                 <Pressable onPress={() => handleTransferTo(m)} hitSlop={8}>
-                  <Text style={[styles.memberActionText, { color: theme.accent }]}>Make owner</Text>
+                  <Text
+                    style={[
+                      styles.memberActionText,
+                      { color: theme.accent, fontFamily: fontFamily.bodySemiBold },
+                    ]}
+                  >
+                    Make owner
+                  </Text>
                 </Pressable>
                 <Pressable onPress={() => handleRemoveMember(m)} hitSlop={8}>
-                  <Text style={styles.memberActionRemove}>Remove</Text>
+                  <Text
+                    style={[
+                      styles.memberActionRemove,
+                      { color: theme.danger, fontFamily: fontFamily.bodySemiBold },
+                    ]}
+                  >
+                    Remove
+                  </Text>
                 </Pressable>
               </View>
             )}
@@ -240,8 +275,10 @@ function MembersSection({
         />
       )}
       {isOwner && atCapacity && (
-        <View style={[styles.limitBanner, { backgroundColor: '#FF9F0A18' }]}>
-          <Text style={styles.limitText}>
+        <View style={[styles.limitBanner, { backgroundColor: `${theme.warning}33` }]}>
+          <Text
+            style={[styles.limitText, { color: theme.warning, fontFamily: fontFamily.bodyMedium }]}
+          >
             Member limit reached ({family.max_members}). Upgrade your plan to add more.
           </Text>
         </View>
@@ -261,8 +298,10 @@ function MemberReadOnly({ family, theme }: { family: Family; theme: ThemeColors 
 
   return (
     <>
-      <View style={[styles.banner, { backgroundColor: theme.backgroundElement }]}>
-        <Text style={[styles.bannerText, { color: theme.textSecondary }]}>
+      <View style={[styles.banner, { backgroundColor: theme.surface1 }]}>
+        <Text
+          style={[styles.bannerText, { color: theme.textSecondary, fontFamily: fontFamily.body }]}
+        >
           Only the family owner can edit settings
         </Text>
       </View>
@@ -295,8 +334,17 @@ function ReadOnlyRow({
 }) {
   return (
     <View style={[styles.readOnlyRow, last && { borderBottomWidth: 0 }]}>
-      <Text style={[styles.readOnlyLabel, { color: theme.textSecondary }]}>{label}</Text>
-      <Text style={[styles.readOnlyValue, { color: theme.text }]}>{value}</Text>
+      <Text
+        style={[
+          styles.readOnlyLabel,
+          { color: theme.textSecondary, fontFamily: fontFamily.bodyMedium },
+        ]}
+      >
+        {label}
+      </Text>
+      <Text style={[styles.readOnlyValue, { color: theme.text, fontFamily: fontFamily.body }]}>
+        {value}
+      </Text>
     </View>
   );
 }
@@ -349,15 +397,17 @@ function OwnerSettings({
     }
   };
 
-  const inputStyle = {
-    borderColor: theme.backgroundSelected,
-    backgroundColor: theme.background,
-  };
-
   return (
     <>
       <Card style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>General</Text>
+        <Text
+          style={[
+            styles.sectionTitle,
+            { color: theme.textSecondary, fontFamily: fontFamily.bodyMedium },
+          ]}
+        >
+          General
+        </Text>
         <Input
           label="Family name"
           value={name}
@@ -366,7 +416,6 @@ function OwnerSettings({
             markDirty();
           }}
           placeholder="Family name"
-          style={inputStyle}
         />
         <View style={styles.budgetInputRow}>
           <View style={{ flex: 1 }}>
@@ -379,11 +428,17 @@ function OwnerSettings({
               }}
               placeholder="e.g. 5000"
               keyboardType="numeric"
-              style={inputStyle}
             />
           </View>
           <View style={styles.currencyPill}>
-            <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>Currency</Text>
+            <Text
+              style={[
+                styles.fieldLabel,
+                { color: theme.textSecondary, fontFamily: fontFamily.bodyMedium },
+              ]}
+            >
+              Currency
+            </Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -399,7 +454,7 @@ function OwnerSettings({
                         styles.currencyChip,
                         {
                           backgroundColor: active ? theme.accent : 'transparent',
-                          borderColor: active ? theme.accent : theme.backgroundSelected,
+                          borderColor: active ? theme.accent : theme.borderSubtle,
                         },
                       ]}
                       onPress={() => {
@@ -407,7 +462,15 @@ function OwnerSettings({
                         markDirty();
                       }}
                     >
-                      <Text style={[styles.currencyText, { color: active ? '#fff' : theme.text }]}>
+                      <Text
+                        style={[
+                          styles.currencyText,
+                          {
+                            color: active ? '#FFFFFF' : theme.text,
+                            fontFamily: fontFamily.bodySemiBold,
+                          },
+                        ]}
+                      >
                         {c}
                       </Text>
                     </Pressable>
@@ -420,11 +483,20 @@ function OwnerSettings({
       </Card>
 
       <Card style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>Schedule</Text>
-        <Text style={[styles.scheduleHint, { color: theme.textSecondary }]}>
+        <Text
+          style={[
+            styles.sectionTitle,
+            { color: theme.textSecondary, fontFamily: fontFamily.bodyMedium },
+          ]}
+        >
+          Schedule
+        </Text>
+        <Text
+          style={[styles.scheduleHint, { color: theme.textSecondary, fontFamily: fontFamily.body }]}
+        >
           Changes take effect next period
         </Text>
-        <View style={[styles.segmented, { backgroundColor: theme.backgroundSelected }]}>
+        <View style={[styles.segmented, { backgroundColor: theme.surface2 }]}>
           {CADENCES.map((c) => (
             <Pressable
               key={c.value}
@@ -436,7 +508,13 @@ function OwnerSettings({
               }}
             >
               <Text
-                style={[styles.segmentText, { color: cadence === c.value ? '#fff' : theme.text }]}
+                style={[
+                  styles.segmentText,
+                  {
+                    color: cadence === c.value ? '#FFFFFF' : theme.text,
+                    fontFamily: fontFamily.bodySemiBold,
+                  },
+                ]}
               >
                 {c.label}
               </Text>
@@ -444,7 +522,12 @@ function OwnerSettings({
           ))}
         </View>
 
-        <Text style={[styles.fieldLabel, { color: theme.textSecondary, marginTop: 16 }]}>
+        <Text
+          style={[
+            styles.fieldLabel,
+            { color: theme.textSecondary, marginTop: 16, fontFamily: fontFamily.bodyMedium },
+          ]}
+        >
           {isMonthly ? 'Starts on day' : 'Starts on'}
         </Text>
         {isMonthly ? (
@@ -492,11 +575,18 @@ function WeekdayPicker({
             key={day}
             style={[
               styles.weekdayChip,
-              { backgroundColor: active ? theme.accent : theme.backgroundSelected },
+              { backgroundColor: active ? theme.accent : theme.surface2 },
             ]}
             onPress={() => onChange(dayNum)}
           >
-            <Text style={[styles.weekdayText, { color: active ? '#fff' : theme.text }]}>{day}</Text>
+            <Text
+              style={[
+                styles.weekdayText,
+                { color: active ? '#FFFFFF' : theme.text, fontFamily: fontFamily.bodySemiBold },
+              ]}
+            >
+              {day}
+            </Text>
           </Pressable>
         );
       })}
@@ -521,13 +611,17 @@ function MonthDayPicker({
         return (
           <Pressable
             key={d}
-            style={[
-              styles.dayCell,
-              { backgroundColor: active ? theme.accent : theme.backgroundSelected },
-            ]}
+            style={[styles.dayCell, { backgroundColor: active ? theme.accent : theme.surface2 }]}
             onPress={() => onChange(d)}
           >
-            <Text style={[styles.dayCellText, { color: active ? '#fff' : theme.text }]}>{d}</Text>
+            <Text
+              style={[
+                styles.dayCellText,
+                { color: active ? '#FFFFFF' : theme.text, fontFamily: fontFamily.bodySemiBold },
+              ]}
+            >
+              {d}
+            </Text>
           </Pressable>
         );
       })}
@@ -572,7 +666,7 @@ const styles = StyleSheet.create({
   memberName: { fontSize: 17, fontWeight: '500', flexShrink: 1 },
   memberActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   memberActionText: { fontSize: 14, fontWeight: '600' },
-  memberActionRemove: { fontSize: 14, fontWeight: '600', color: '#FF3B30' },
+  memberActionRemove: { fontSize: 14, fontWeight: '600' },
   roleBadge: {
     paddingHorizontal: 10,
     paddingVertical: 3,
@@ -586,7 +680,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 10,
   },
-  limitText: { fontSize: 14, fontWeight: '500', color: '#FF9F0A', textAlign: 'center' },
+  limitText: { fontSize: 14, fontWeight: '500', textAlign: 'center' },
 
   banner: {
     paddingVertical: 12,

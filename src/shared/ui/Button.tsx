@@ -6,7 +6,10 @@ import {
   useColorScheme,
   type ViewStyle,
 } from 'react-native';
-import { Colors } from '@shared/lib/theme';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { Colors, Motion, Radii, fontFamily } from '@shared/lib/theme';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 type ButtonVariant = 'primary' | 'secondary' | 'destructive' | 'ghost';
 
@@ -29,11 +32,16 @@ export function Button({
 }: Props) {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
   const bg: Record<ButtonVariant, string> = {
     primary: theme.accent,
-    secondary: theme.backgroundElement,
-    destructive: '#FF3B30',
+    secondary: theme.surface2,
+    destructive: theme.danger,
     ghost: 'transparent',
   };
 
@@ -44,30 +52,55 @@ export function Button({
     ghost: theme.accent,
   };
 
+  const borderForGhost =
+    variant === 'ghost'
+      ? { borderWidth: StyleSheet.hairlineWidth, borderColor: theme.borderSubtle }
+      : {};
+
   return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.base,
-        { backgroundColor: bg[variant] },
-        variant === 'ghost' && styles.ghost,
-        (pressed || disabled || loading) && styles.dimmed,
-        style,
-      ]}
+    <AnimatedPressable
+      style={[animatedStyle]}
+      onPressIn={() => {
+        if (!disabled && !loading)
+          scale.value = withSpring(Motion.pressScale, Motion.springDefault);
+      }}
+      onPressOut={() => {
+        scale.value = withSpring(1, Motion.springDefault);
+      }}
       onPress={onPress}
       disabled={disabled || loading}
     >
-      {loading ? (
-        <ActivityIndicator color={fg[variant]} />
-      ) : (
-        <Text style={[styles.text, { color: fg[variant] }]}>{title}</Text>
-      )}
-    </Pressable>
+      <Animated.View
+        style={[
+          styles.base,
+          { backgroundColor: bg[variant] },
+          borderForGhost,
+          variant === 'ghost' && styles.ghost,
+          (disabled || loading) && styles.dimmed,
+          style,
+        ]}
+      >
+        {loading ? (
+          <ActivityIndicator color={fg[variant]} />
+        ) : (
+          <Text style={[styles.text, { color: fg[variant], fontFamily: fontFamily.bodySemiBold }]}>
+            {title}
+          </Text>
+        )}
+      </Animated.View>
+    </AnimatedPressable>
   );
 }
 
 const styles = StyleSheet.create({
-  base: { height: 52, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  base: {
+    height: 52,
+    borderRadius: Radii.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
   ghost: { height: 44 },
-  dimmed: { opacity: 0.6 },
-  text: { fontSize: 17, fontWeight: '600' },
+  dimmed: { opacity: 0.55 },
+  text: { fontSize: 17 },
 });

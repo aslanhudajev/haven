@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { isJoinFamilyError, joinFamily } from '@entities/family';
 import { APP_STORAGE_PENDING_INVITE_KEY } from '@shared/lib/storage';
-import { Colors } from '@shared/lib/theme';
+import { Colors, fontFamily } from '@shared/lib/theme';
 import { Button } from '@shared/ui';
 import { useAppGateContext } from '@app/providers/AppGateProvider';
 import { useAuth } from '@app/providers/AuthProvider';
@@ -66,10 +66,16 @@ export default function InviteScreen() {
 
   if (error) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.container, { backgroundColor: theme.surface0 }]}>
         <Text style={styles.emoji}>😕</Text>
-        <Text style={[styles.title, { color: theme.text }]}>Oops</Text>
-        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{error}</Text>
+        <Text style={[styles.title, { color: theme.text, fontFamily: fontFamily.display }]}>
+          Oops
+        </Text>
+        <Text
+          style={[styles.subtitle, { color: theme.textSecondary, fontFamily: fontFamily.body }]}
+        >
+          {error}
+        </Text>
         <Button
           title="Go Home"
           onPress={() => router.replace('/')}
@@ -80,10 +86,12 @@ export default function InviteScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.surface0 }]}>
       <Text style={styles.emoji}>🔗</Text>
-      <Text style={[styles.title, { color: theme.text }]}>Family Invite</Text>
-      <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+      <Text style={[styles.title, { color: theme.text, fontFamily: fontFamily.display }]}>
+        Family Invite
+      </Text>
+      <Text style={[styles.subtitle, { color: theme.textSecondary, fontFamily: fontFamily.body }]}>
         You've been invited to join a family on FiftyFifty.
       </Text>
       <View style={styles.actions}>

@@ -1,18 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { useEffect } from 'react';
-import { useColorScheme } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import {
   countArchivedUnsettledPeriods,
   getLedgerPeriods,
   useLedgerTabBadgeStore,
 } from '@entities/period';
-import { Colors } from '@shared/lib/theme';
+import { fontFamily, useTheme } from '@shared/lib/theme';
 import { useAppGateContext } from '@app/providers/AppGateProvider';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
+  const { colors: theme, tabBarShadow } = useTheme();
   const { family } = useAppGateContext();
   const unsettledCount = useLedgerTabBadgeStore((s) => s.unsettledArchivedCount);
   const clearLedgerBadge = useLedgerTabBadgeStore((s) => s.clear);
@@ -52,10 +51,24 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: true,
         headerTintColor: theme.text,
-        headerStyle: { backgroundColor: theme.background },
-        tabBarStyle: { backgroundColor: theme.background },
+        headerTitleStyle: { fontFamily: fontFamily.bodySemiBold, fontSize: 17 },
+        headerStyle: {
+          backgroundColor: theme.surface0,
+          borderBottomWidth: StyleSheet.hairlineWidth,
+          borderBottomColor: theme.listDivider,
+        },
+        headerShadowVisible: false,
+        tabBarStyle: {
+          backgroundColor: theme.surface1,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          borderTopColor: theme.borderSubtle,
+          paddingTop: 6,
+          height: 62,
+          ...tabBarShadow,
+        },
         tabBarActiveTintColor: theme.accent,
         tabBarInactiveTintColor: theme.textSecondary,
+        tabBarLabelStyle: { fontFamily: fontFamily.bodyMedium, fontSize: 11 },
       }}
     >
       <Tabs.Screen
@@ -63,8 +76,11 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           headerShown: false,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <View style={styles.iconWrap}>
+              <Ionicons name={focused ? 'home' : 'home-outline'} size={size + 1} color={color} />
+              {focused ? <View style={[styles.tabDot, { backgroundColor: theme.accent }]} /> : null}
+            </View>
           ),
         }}
       />
@@ -73,9 +89,9 @@ export default function TabLayout() {
         options={{
           title: 'Ledger',
           tabBarBadge: ledgerBadge,
-          tabBarBadgeStyle: { backgroundColor: '#FF3B30' },
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="list-outline" size={size} color={color} />
+          tabBarBadgeStyle: { backgroundColor: theme.danger, fontFamily: fontFamily.bodyBold },
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'list' : 'list-outline'} size={size + 1} color={color} />
           ),
         }}
       />
@@ -83,11 +99,28 @@ export default function TabLayout() {
         name="settings"
         options={{
           title: 'Settings',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings-outline" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <View style={styles.iconWrap}>
+              <Ionicons
+                name={focused ? 'settings' : 'settings-outline'}
+                size={size + 1}
+                color={color}
+              />
+              {focused ? <View style={[styles.tabDot, { backgroundColor: theme.accent }]} /> : null}
+            </View>
           ),
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  iconWrap: { alignItems: 'center', justifyContent: 'center', minHeight: 28 },
+  tabDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    marginTop: 3,
+  },
+});

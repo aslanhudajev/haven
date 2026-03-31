@@ -17,7 +17,7 @@ import {
   isLocalCalendarDateAfterInclusiveEnd,
 } from '@shared/lib/format';
 import { calculateSettlements, type Settlement } from '@shared/lib/settlement';
-import { Colors, Spacing } from '@shared/lib/theme';
+import { Colors, Spacing, fontFamily } from '@shared/lib/theme';
 import { Card, Button } from '@shared/ui';
 import { useAppGateContext } from '@app/providers/AppGateProvider';
 import { useAuth } from '@app/providers/AuthProvider';
@@ -101,50 +101,97 @@ export default function PeriodReportScreen() {
 
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: theme.background }]}
+      style={[styles.container, { backgroundColor: theme.surface0 }]}
       contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.xl }}
     >
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <Text style={[styles.title, { color: theme.text, flex: 1, minWidth: 0 }]}>
+          <Text
+            style={[
+              styles.title,
+              { color: theme.text, flex: 1, minWidth: 0, fontFamily: fontFamily.display },
+            ]}
+          >
             {periodName}
           </Text>
           {isResolved && (
-            <View style={styles.resolvedBadge}>
-              <Text style={styles.resolvedBadgeText}>Settled</Text>
+            <View style={[styles.resolvedBadge, { backgroundColor: `${theme.success}33` }]}>
+              <Text
+                style={[
+                  styles.resolvedBadgeText,
+                  { color: theme.success, fontFamily: fontFamily.bodySemiBold },
+                ]}
+              >
+                Settled
+              </Text>
             </View>
           )}
           {isActive && (
-            <View style={[styles.statusBadge, { backgroundColor: `${theme.accent}22` }]}>
-              <Text style={[styles.statusBadgeText, { color: theme.accent }]}>Ongoing</Text>
+            <View style={[styles.statusBadge, { backgroundColor: theme.accentMuted }]}>
+              <Text
+                style={[
+                  styles.statusBadgeText,
+                  { color: theme.accent, fontFamily: fontFamily.bodySemiBold },
+                ]}
+              >
+                Ongoing
+              </Text>
             </View>
           )}
           {status === 'archived' && !isResolved && (
-            <View style={[styles.statusBadge, { backgroundColor: theme.backgroundSelected }]}>
-              <Text style={[styles.statusBadgeText, { color: theme.textSecondary }]}>
+            <View style={[styles.statusBadge, { backgroundColor: theme.surface2 }]}>
+              <Text
+                style={[
+                  styles.statusBadgeText,
+                  { color: theme.textSecondary, fontFamily: fontFamily.bodySemiBold },
+                ]}
+              >
                 Unsettled
               </Text>
             </View>
           )}
         </View>
         {startsAt && endsAt && (
-          <Text style={[styles.range, { color: theme.textSecondary }]}>
+          <Text style={[styles.range, { color: theme.textSecondary, fontFamily: fontFamily.body }]}>
             {formatDateRange(startsAt, endsAt)}
           </Text>
         )}
       </View>
 
       <Card style={styles.section}>
-        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Total spent</Text>
-        <Text style={[styles.totalAmount, { color: theme.text }]}>{formatMoney(totalSpent)}</Text>
+        <Text
+          style={[
+            styles.sectionLabel,
+            { color: theme.textSecondary, fontFamily: fontFamily.bodyMedium },
+          ]}
+        >
+          Total spent
+        </Text>
+        <Text style={[styles.totalAmount, { color: theme.text, fontFamily: fontFamily.display }]}>
+          {formatMoney(totalSpent)}
+        </Text>
       </Card>
 
       <Card style={styles.section}>
-        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Per member</Text>
+        <Text
+          style={[
+            styles.sectionLabel,
+            { color: theme.textSecondary, fontFamily: fontFamily.bodyMedium },
+          ]}
+        >
+          Per member
+        </Text>
         {spendByUser.map((entry) => (
           <View key={entry.userId} style={styles.memberRow}>
-            <Text style={[styles.memberName, { color: theme.text }]}>{entry.name}</Text>
-            <Text style={[styles.memberAmount, { color: theme.textSecondary }]}>
+            <Text style={[styles.memberName, { color: theme.text, fontFamily: fontFamily.body }]}>
+              {entry.name}
+            </Text>
+            <Text
+              style={[
+                styles.memberAmount,
+                { color: theme.textSecondary, fontFamily: fontFamily.bodyMedium },
+              ]}
+            >
               {formatMoney(entry.totalCents)}
             </Text>
           </View>
@@ -153,13 +200,27 @@ export default function PeriodReportScreen() {
 
       {settlements.length > 0 && (
         <Card style={styles.section}>
-          <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Settlement</Text>
+          <Text
+            style={[
+              styles.sectionLabel,
+              { color: theme.textSecondary, fontFamily: fontFamily.bodyMedium },
+            ]}
+          >
+            Settlement
+          </Text>
           {settlements.map((s: Settlement, i: number) => (
             <View key={i} style={styles.settlementRow}>
-              <Text style={[styles.settlementText, { color: theme.text }]}>
+              <Text
+                style={[styles.settlementText, { color: theme.text, fontFamily: fontFamily.body }]}
+              >
                 {s.from.name} owes {s.to.name}
               </Text>
-              <Text style={[styles.settlementAmount, { color: theme.accent }]}>
+              <Text
+                style={[
+                  styles.settlementAmount,
+                  { color: theme.moneyHighlight, fontFamily: fontFamily.bodySemiBold },
+                ]}
+              >
                 {formatMoney(s.amountCents)}
               </Text>
             </View>
@@ -168,20 +229,37 @@ export default function PeriodReportScreen() {
       )}
 
       <Card style={styles.section}>
-        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
+        <Text
+          style={[
+            styles.sectionLabel,
+            { color: theme.textSecondary, fontFamily: fontFamily.bodyMedium },
+          ]}
+        >
           Purchases ({purchases.length})
         </Text>
         {purchases.map((p) => (
           <View key={p.id} style={styles.purchaseRow}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.purchaseDesc, { color: theme.text }]}>
+              <Text
+                style={[styles.purchaseDesc, { color: theme.text, fontFamily: fontFamily.body }]}
+              >
                 {p.description || 'No description'}
               </Text>
-              <Text style={[styles.purchaseBy, { color: theme.textSecondary }]}>
+              <Text
+                style={[
+                  styles.purchaseBy,
+                  { color: theme.textSecondary, fontFamily: fontFamily.body },
+                ]}
+              >
                 {p.profile?.full_name || 'Anonymous'}
               </Text>
             </View>
-            <Text style={[styles.purchaseAmount, { color: theme.text }]}>
+            <Text
+              style={[
+                styles.purchaseAmount,
+                { color: theme.text, fontFamily: fontFamily.bodySemiBold },
+              ]}
+            >
               {formatMoney(p.amount_cents)}
             </Text>
           </View>
@@ -190,7 +268,12 @@ export default function PeriodReportScreen() {
 
       {isActive && (
         <View style={[styles.resolveAction, styles.pendingEndHint]}>
-          <Text style={[styles.pendingEndText, { color: theme.textSecondary }]}>
+          <Text
+            style={[
+              styles.pendingEndText,
+              { color: theme.textSecondary, fontFamily: fontFamily.body },
+            ]}
+          >
             {
               'This period is still open. Settlement is available after the last day; you can review spending anytime.'
             }
@@ -199,7 +282,12 @@ export default function PeriodReportScreen() {
       )}
       {status === 'archived' && !periodHasEnded && (
         <View style={[styles.resolveAction, styles.pendingEndHint]}>
-          <Text style={[styles.pendingEndText, { color: theme.textSecondary }]}>
+          <Text
+            style={[
+              styles.pendingEndText,
+              { color: theme.textSecondary, fontFamily: fontFamily.body },
+            ]}
+          >
             {"Settlement is available after this period's last day."}
           </Text>
         </View>
@@ -220,12 +308,11 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: '700', letterSpacing: -0.5 },
   range: { fontSize: 15, marginTop: 4 },
   resolvedBadge: {
-    backgroundColor: '#34C75920',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
   },
-  resolvedBadgeText: { color: '#34C759', fontSize: 13, fontWeight: '600' },
+  resolvedBadgeText: { fontSize: 13, fontWeight: '600' },
   statusBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,

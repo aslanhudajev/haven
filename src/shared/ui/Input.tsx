@@ -7,7 +7,7 @@ import {
   useColorScheme,
   type TextInputProps,
 } from 'react-native';
-import { Colors } from '@shared/lib/theme';
+import { Colors, Radii, fontFamily } from '@shared/lib/theme';
 
 type Props = TextInputProps & {
   label?: string;
@@ -20,22 +20,33 @@ export const Input = forwardRef<TextInput, Props>(({ label, error, style, ...res
 
   return (
     <View style={styles.wrapper}>
-      {label && <Text style={[styles.label, { color: theme.textSecondary }]}>{label}</Text>}
+      {label && (
+        <Text
+          style={[styles.label, { color: theme.textSecondary, fontFamily: fontFamily.bodyMedium }]}
+        >
+          {label}
+        </Text>
+      )}
       <TextInput
         ref={ref}
         style={[
           styles.input,
           {
             color: theme.text,
-            backgroundColor: theme.backgroundElement,
-            borderColor: error ? '#FF3B30' : theme.backgroundElement,
+            backgroundColor: theme.surface1,
+            borderColor: error ? theme.danger : theme.borderSubtle,
+            fontFamily: fontFamily.body,
           },
           style,
         ]}
-        placeholderTextColor={theme.textSecondary}
+        placeholderTextColor={theme.textMuted}
         {...rest}
       />
-      {error && <Text style={styles.error}>{error}</Text>}
+      {error && (
+        <Text style={[styles.error, { color: theme.danger, fontFamily: fontFamily.body }]}>
+          {error}
+        </Text>
+      )}
     </View>
   );
 });
@@ -51,6 +62,12 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     marginLeft: 4,
   },
-  input: { height: 52, borderRadius: 12, paddingHorizontal: 16, fontSize: 17, borderWidth: 1 },
-  error: { color: '#FF3B30', fontSize: 13, marginTop: 4, marginLeft: 4 },
+  input: {
+    height: 52,
+    borderRadius: Radii.md,
+    paddingHorizontal: 16,
+    fontSize: 17,
+    borderWidth: 1,
+  },
+  error: { fontSize: 13, marginTop: 4, marginLeft: 4 },
 });

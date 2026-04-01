@@ -3,6 +3,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 /** Current onboarding / invite keys (URL scheme: fiftyfifty). */
 export const APP_STORAGE_WELCOMED_KEY = 'fiftyfifty:welcomed';
 export const APP_STORAGE_PENDING_INVITE_KEY = 'fiftyfifty:pending_invite';
+export const APP_STORAGE_HOUSEHOLD_INTENT_KEY = 'fiftyfifty:household_intent';
+
+/** Post-welcome path: payer creates household vs member joins via invite. */
+export type HouseholdIntent = 'create' | 'join';
 
 const LEGACY_WELCOMED = 'haven:welcomed';
 const LEGACY_PENDING_INVITE = 'haven:pending_invite';
@@ -37,4 +41,26 @@ export async function loadPendingInviteCode(): Promise<string | null> {
     return old;
   }
   return null;
+}
+
+export async function loadHouseholdIntent(): Promise<HouseholdIntent | null> {
+  const v = await AsyncStorage.getItem(APP_STORAGE_HOUSEHOLD_INTENT_KEY);
+  if (v === 'create' || v === 'join') return v;
+  return null;
+}
+
+export async function saveHouseholdIntent(intent: HouseholdIntent): Promise<void> {
+  await AsyncStorage.setItem(APP_STORAGE_HOUSEHOLD_INTENT_KEY, intent);
+}
+
+export async function clearHouseholdIntent(): Promise<void> {
+  await AsyncStorage.removeItem(APP_STORAGE_HOUSEHOLD_INTENT_KEY);
+}
+
+/** Clears invite + household intent so the next session re-chooses path (e.g. after sign out). */
+export async function clearOnboardingSessionKeys(): Promise<void> {
+  await AsyncStorage.multiRemove([
+    APP_STORAGE_PENDING_INVITE_KEY,
+    APP_STORAGE_HOUSEHOLD_INTENT_KEY,
+  ]);
 }

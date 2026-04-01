@@ -5,36 +5,48 @@ alwaysApply: true
 
 # App Flow and Gate Logic
 
-## Navigation Flow (normal user)
+## Navigation Flow (normal user — create household)
 
 1. **Welcome slides** — shown once, tracked by `fiftyfifty:welcomed` in AsyncStorage (legacy `haven:welcomed` is migrated on read)
-2. **Paywall** — RevenueCat paywall (anonymous purchase, no auth required)
-3. **Sign in** — Magic Link email OTP
-4. **Onboarding** — set display name → create family (sets period cadence, anchor day, creates first period)
-5. **Main app** — Dashboard (tabs: Home, History, Settings)
+2. **Household intent** — `/(auth)/household-intent`: user chooses **Start a household** (`fiftyfifty:household_intent` = `create`) or **Join** (`join`)
+3. **Paywall** — only on the **create** path when anonymous and no subscription (RevenueCat; skipped when `SKIP_PAYWALL` or RC disabled)
+4. **Sign in** — email OTP
+5. **Onboarding** — set display name → **create family** (period cadence, anchor day, first period)
+6. **Main app** — Dashboard (tabs: Home, History, Settings)
 
-## Navigation Flow (invited user)
+## Navigation Flow (join household)
 
-1. Tap deep link → `/invite/[code]` stores code in `fiftyfifty:pending_invite` (AsyncStorage; legacy `haven:pending_invite` migrated on read)
+1. After welcome + intent: **Join** → `/(auth)/enter-invite-code` (paste code into `fiftyfifty:pending_invite`), then sign in → profile → `resolveUserData` auto-joins via `redeem_family_invite` → main app. **No paywall** on this path for anonymous users.
+2. Legacy / deep link: tap invite link → `/invite/[code]` stores pending invite + sets intent `join` → same join behavior after sign-in.
+
+## Navigation Flow (invited user via link)
+
+1. Tap deep link → `/invite/[code]` stores code in `fiftyfifty:pending_invite` and intent `join`
 2. Accept → skip paywall → sign in → auto-join family (gate handles this) → main app
-3. Deny → clear pending invite → enter normal flow from step 1
+3. Deny → clear pending invite + household intent → enter normal flow from welcome / intent
 
 ## AppGateProvider
 
-`useAppGate()` in `src/application/providers/AppGateProvider/useAppGate.ts` determines `targetRoute`:
+`useAppGate()` in `src/application/providers/AppGateProvider/useAppGate.ts` determines `targetRoute` (order matters):
 
 | Check | Target |
 |-------|--------|
 | Not welcomed | `/(auth)/welcome` |
-| No subscription (owner flow) | `/paywall` |
+| Welcomed, signed out, no intent & no pending invite | `/(auth)/household-intent` |
+| Welcomed, signed out, join intent, no code yet | `/(auth)/enter-invite-code` |
+| Anonymous, create intent, no subscription | `/paywall` |
+| Signed in, no subscription, no family, no pending invite | `/paywall` |
 | Not authenticated | `/(auth)/login` |
 | Profile incomplete | `/(onboarding)/profile` |
-| Has pending invite | auto-joins, then falls through |
-| No family membership | `/(onboarding)/create-family` |
-| Family not active (member) | `/(onboarding)/sub-expired` |
+| Signed in, no family, pending invite (join in progress) | `invite-pending` → `/invite/[code]` |
+| Signed in, join path, no pending (e.g. retry) | `/(auth)/enter-invite-code` |
+| Signed in, create path (or legacy unset intent), no family | `/(onboarding)/create-family` |
+| Family not active (member) | `/(onboarding)/sub-expired` (owner → paywall) unless paywall bypass |
 | All good | `/(app)/(tabs)` |
 
-`AppGateRedirect` handles navigation. It supports intra-group transitions (e.g. profile → create-family within `(onboarding)`).
+**Join path** = pending invite in storage **or** `household_intent === 'join'`. **Sign out** clears invite + intent via `clearOnboardingSessionKeys()`.
+
+`AppGateRedirect` handles navigation. It supports intra-group transitions within `(onboarding)` and `(auth)` (e.g. household-intent → login).
 
 ## Subscription Model
 

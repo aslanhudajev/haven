@@ -16,6 +16,8 @@ import { SKIP_PAYWALL } from '@shared/config/billingGate';
 import { supabase } from '@shared/config/supabase';
 import {
   APP_STORAGE_PENDING_INVITE_KEY,
+  type HouseholdIntent,
+  loadHouseholdIntent,
   loadWelcomedFlag,
   loadPendingInviteCode,
 } from '@shared/lib/storage';
@@ -29,6 +31,8 @@ function gateLog(...args: unknown[]) {
 
 export type AppGateTarget =
   | '/(auth)/welcome'
+  | '/(auth)/household-intent'
+  | '/(auth)/enter-invite-code'
   | '/paywall'
   | '/(auth)/login'
   | '/(onboarding)/profile'
@@ -48,9 +52,21 @@ export type AppGateData = {
   refresh: () => void;
 };
 
-async function readLocalFlags(): Promise<{ welcomed: boolean; inviteCode: string | null }> {
-  const [welcomedVal, inviteVal] = await Promise.all([loadWelcomedFlag(), loadPendingInviteCode()]);
-  return { welcomed: welcomedVal === 'true', inviteCode: inviteVal };
+async function readSessionFlags(): Promise<{
+  welcomed: boolean;
+  inviteCode: string | null;
+  householdIntent: HouseholdIntent | null;
+}> {
+  const [welcomedVal, inviteVal, intentVal] = await Promise.all([
+    loadWelcomedFlag(),
+    loadPendingInviteCode(),
+    loadHouseholdIntent(),
+  ]);
+  return {
+    welcomed: welcomedVal === 'true',
+    inviteCode: inviteVal,
+    householdIntent: intentVal,
+  };
 }
 
 async function readHasSubscription(): Promise<boolean> {
@@ -164,6 +180,7 @@ export function useAppGate(user: SupabaseUser | null): AppGateData {
   const [family, setFamily] = useState<Family | null>(null);
   const [membership, setMembership] = useState<FamilyMember | null>(null);
   const [pendingInvite, setPendingInvite] = useState<string | null>(null);
+  const [householdIntent, setHouseholdIntent] = useState<HouseholdIntent | null>(null);
 
   const prevUserId = useRef<string | null>(null);
 
@@ -171,7 +188,11 @@ export function useAppGate(user: SupabaseUser | null): AppGateData {
     setIsLoading(true);
     gateLog('evaluate start', { userId: user?.id ?? null });
     try {
-      const { welcomed: w, inviteCode } = await readLocalFlags();
+      const {
+        welcomed: w,
+        inviteCode,
+        householdIntent: intentFromStorage,
+      } = await readSessionFlags();
       const hasSubAnon = await readHasSubscription();
 
       let nextProfile: Profile | null = null;
@@ -179,6 +200,7 @@ export function useAppGate(user: SupabaseUser | null): AppGateData {
       let nextMembership: FamilyMember | null = null;
       let nextPending = inviteCode;
       let nextHasSub = hasSubAnon;
+      const nextIntent = intentFromStorage;
 
       if (user) {
         if (prevUserId.current !== user.id) {
@@ -199,6 +221,7 @@ export function useAppGate(user: SupabaseUser | null): AppGateData {
 
       setWelcomed(w);
       setPendingInvite(nextPending);
+      setHouseholdIntent(nextIntent);
       setHasSubscription(nextHasSub);
       setProfile(nextProfile);
       setFamily(nextFamily);
@@ -212,6 +235,7 @@ export function useAppGate(user: SupabaseUser | null): AppGateData {
         family: nextFamily,
         isOwner: nextMembership?.role === 'owner',
         pendingInvite: nextPending,
+        householdIntent: nextIntent,
       });
       gateLog('evaluate done', {
         userId: user?.id ?? null,
@@ -221,17 +245,20 @@ export function useAppGate(user: SupabaseUser | null): AppGateData {
         familyIsActive: nextFamily?.is_active ?? null,
         isOwner: nextMembership?.role === 'owner',
         pendingInvite: nextPending,
+        householdIntent: nextIntent,
         targetRoute: target,
       });
     } catch (err) {
       console.warn('AppGate evaluate error:', err);
       try {
-        const { welcomed: w, inviteCode } = await readLocalFlags();
+        const { welcomed: w, inviteCode, householdIntent: hi } = await readSessionFlags();
         setWelcomed(w);
         setPendingInvite(inviteCode);
+        setHouseholdIntent(hi);
       } catch {
         setWelcomed(false);
         setPendingInvite(null);
+        setHouseholdIntent(null);
       }
       setHasSubscription(SKIP_PAYWALL || !REVENUECAT_ENABLED);
       setProfile(null);
@@ -257,6 +284,7 @@ export function useAppGate(user: SupabaseUser | null): AppGateData {
     family,
     isOwner,
     pendingInvite,
+    householdIntent,
   });
 
   return {
@@ -271,6 +299,14 @@ export function useAppGate(user: SupabaseUser | null): AppGateData {
   };
 }
 
+function isJoinPath(
+  householdIntent: HouseholdIntent | null,
+  pendingInvite: string | null,
+): boolean {
+  if (pendingInvite) return true;
+  return householdIntent === 'join';
+}
+
 function computeTarget(state: {
   welcomed: boolean | null;
   hasSubscription: boolean | null;
@@ -279,9 +315,20 @@ function computeTarget(state: {
   family: Family | null;
   isOwner: boolean;
   pendingInvite: string | null;
+  householdIntent: HouseholdIntent | null;
 }): AppGateTarget {
-  const { welcomed, hasSubscription, user, profile, family, isOwner, pendingInvite } = state;
+  const {
+    welcomed,
+    hasSubscription,
+    user,
+    profile,
+    family,
+    isOwner,
+    pendingInvite,
+    householdIntent,
+  } = state;
   const subOk = SKIP_PAYWALL || !!hasSubscription;
+  const joinPath = isJoinPath(householdIntent, pendingInvite);
 
   if (welcomed === null || hasSubscription === null) {
     return '/(auth)/welcome';
@@ -289,8 +336,21 @@ function computeTarget(state: {
 
   if (!welcomed) return '/(auth)/welcome';
 
-  if (!subOk && !user) return '/paywall';
-  if (!subOk && user && !family && !pendingInvite) return '/paywall';
+  if (!user && welcomed && householdIntent === null && !pendingInvite) {
+    return '/(auth)/household-intent';
+  }
+
+  if (!user && welcomed && householdIntent === 'join' && !pendingInvite) {
+    return '/(auth)/enter-invite-code';
+  }
+
+  if (!subOk && !user && householdIntent === 'create') {
+    return '/paywall';
+  }
+
+  if (!subOk && user && !family && !pendingInvite) {
+    return '/paywall';
+  }
 
   if (!user) return '/(auth)/login';
 
@@ -298,7 +358,17 @@ function computeTarget(state: {
 
   if (!family && pendingInvite) return 'invite-pending';
 
-  if (!family) return '/(onboarding)/create-family';
+  if (!family && joinPath && !pendingInvite && user && profile.onboarding_completed) {
+    return '/(auth)/enter-invite-code';
+  }
+
+  if (!family && !joinPath) {
+    return '/(onboarding)/create-family';
+  }
+
+  if (!family) {
+    return joinPath ? '/(auth)/enter-invite-code' : '/(onboarding)/create-family';
+  }
 
   if (!family.is_active && !SKIP_PAYWALL) {
     return isOwner ? '/paywall' : '/(onboarding)/sub-expired';

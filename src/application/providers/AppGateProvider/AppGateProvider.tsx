@@ -1,4 +1,4 @@
-import { useRootNavigationState, useSegments, Redirect } from 'expo-router';
+import { useRootNavigationState, useSegments, Redirect, type Href } from 'expo-router';
 import { createContext, useContext } from 'react';
 import { useAuth } from '../AuthProvider';
 import { useAppGate, type AppGateData, type AppGateTarget } from './useAppGate';
@@ -28,6 +28,8 @@ const ROUTE_TO_GROUP: Record<Exclude<AppGateTarget, 'invite-pending'>, string> &
   'invite-pending': string;
 } = {
   '/(auth)/welcome': '(auth)',
+  '/(auth)/household-intent': '(auth)',
+  '/(auth)/enter-invite-code': '(auth)',
   '/(auth)/login': '(auth)',
   '/paywall': 'paywall',
   '/(onboarding)/profile': '(onboarding)',
@@ -39,6 +41,14 @@ const ROUTE_TO_GROUP: Record<Exclude<AppGateTarget, 'invite-pending'>, string> &
 
 function currentPathFromSegments(segments: string[]): string {
   return '/' + segments.join('/');
+}
+
+/**
+ * Cast gate targets to Expo Router `Href`. Generated route types can lag new screens until dev server
+ * runs; `invite-pending` is never passed here (handled above).
+ */
+function gateHref(route: AppGateTarget): Href {
+  return route as Href;
 }
 
 function AppGateRedirect() {
@@ -66,18 +76,21 @@ function AppGateRedirect() {
 
   if (currentGroup === 'invite') {
     if (targetGroup === 'invite') return null;
-    return <Redirect href={targetRoute} />;
+    return <Redirect href={gateHref(targetRoute)} />;
   }
 
   if (currentGroup === targetGroup) {
-    if (currentGroup === '(onboarding)' && currentPath !== targetRoute) {
-      return <Redirect href={targetRoute} />;
+    if (
+      (currentGroup === '(onboarding)' || currentGroup === '(auth)') &&
+      currentPath !== targetRoute
+    ) {
+      return <Redirect href={gateHref(targetRoute)} />;
     }
     return null;
   }
 
   if (currentGroup === '' || currentGroup === 'index') {
-    return <Redirect href={targetRoute} />;
+    return <Redirect href={gateHref(targetRoute)} />;
   }
 
   const needsRedirect =
@@ -87,7 +100,7 @@ function AppGateRedirect() {
     (currentGroup === 'paywall' && targetGroup !== 'paywall');
 
   if (needsRedirect) {
-    return <Redirect href={targetRoute} />;
+    return <Redirect href={gateHref(targetRoute)} />;
   }
 
   return null;

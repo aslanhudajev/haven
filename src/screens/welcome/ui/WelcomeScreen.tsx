@@ -38,7 +38,7 @@ const slides: Slide[] = [
     id: '3',
     emoji: '✨',
     title: 'Ready to Begin?',
-    subtitle: 'Create your family and\nstart splitting expenses.',
+    subtitle: 'Set up or join a household,\nthen start splitting expenses.',
   },
 ];
 

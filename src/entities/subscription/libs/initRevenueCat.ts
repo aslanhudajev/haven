@@ -39,10 +39,7 @@ async function getPurchases() {
 
 function summarizeEntitlements(info: {
   entitlements: {
-    active: Record<
-      string,
-      { expirationDate?: string | null; productIdentifier?: string }
-    >;
+    active: Record<string, { expirationDate?: string | null; productIdentifier?: string }>;
     all: Record<
       string,
       { isActive?: boolean; expirationDate?: string | null; productIdentifier?: string }

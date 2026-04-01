@@ -39,13 +39,21 @@ async function getPurchases() {
 
 function summarizeEntitlements(info: {
   entitlements: {
-    active: Record<string, { expirationDate?: string | null; productIdentifier?: string }>;
-    all: Record<string, { isActive?: boolean; expirationDate?: string | null; productIdentifier?: string }>;
+    active: Record<
+      string,
+      { expirationDate?: string | null; productIdentifier?: string }
+    >;
+    all: Record<
+      string,
+      { isActive?: boolean; expirationDate?: string | null; productIdentifier?: string }
+    >;
   };
 }) {
   const { active, all } = info.entitlements;
-  const allSummary: Record<string, { isActive?: boolean; expirationDate?: string | null; productIdentifier?: string | null }> =
-    {};
+  const allSummary: Record<
+    string,
+    { isActive?: boolean; expirationDate?: string | null; productIdentifier?: string | null }
+  > = {};
   for (const key of Object.keys(all)) {
     const e = all[key];
     allSummary[key] = {
@@ -139,13 +147,20 @@ export async function getSubscriptionTier(): Promise<{
     const active = info.entitlements.active;
     const entitlement = active[REQUIRED_ENTITLEMENT_ID];
     if (!entitlement) {
-      rcLog('getSubscriptionTier: required entitlement not in active', summarizeEntitlements({ entitlements: info.entitlements }));
+      rcLog(
+        'getSubscriptionTier: required entitlement not in active',
+        summarizeEntitlements({ entitlements: info.entitlements }),
+      );
       return { maxMembers: DEFAULT_MAX_MEMBERS, productId: null };
     }
 
     const productId = entitlement.productIdentifier;
     const maxMembers = TIER_MAX_MEMBERS[productId] ?? DEFAULT_MAX_MEMBERS;
-    rcLog('getSubscriptionTier', { maxMembers, productId, expirationDate: entitlement.expirationDate });
+    rcLog('getSubscriptionTier', {
+      maxMembers,
+      productId,
+      expirationDate: entitlement.expirationDate,
+    });
     return { maxMembers, productId };
   } catch (e) {
     rcLog('getSubscriptionTier error', e);

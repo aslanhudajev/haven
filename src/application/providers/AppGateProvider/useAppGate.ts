@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { getFamily, joinFamily, type Family, type FamilyMember } from '@entities/family';
 import { getProfile, type Profile } from '@entities/profile';
 import {
+  DEV_DEFAULT_MAX_MEMBERS,
   REVENUECAT_ENABLED,
   checkSubscription,
   configureRevenueCat,
@@ -11,6 +12,7 @@ import {
   resolveMaxMembersForTier,
   syncRevenueCatSubscription,
 } from '@entities/subscription';
+import { SKIP_PAYWALL } from '@shared/config/billingGate';
 import { supabase } from '@shared/config/supabase';
 import {
   APP_STORAGE_PENDING_INVITE_KEY,
@@ -52,6 +54,7 @@ async function readLocalFlags(): Promise<{ welcomed: boolean; inviteCode: string
 }
 
 async function readHasSubscription(): Promise<boolean> {
+  if (SKIP_PAYWALL) return true;
   if (!REVENUECAT_ENABLED) return true;
   await configureRevenueCat();
   return checkSubscription();
@@ -91,38 +94,53 @@ async function resolveUserData(
       .single();
     memberRow = m as FamilyMember | null;
 
-    if (REVENUECAT_ENABLED && memberRow?.role === 'owner') {
-      gateLog('resolveUserData: owner → syncRevenueCatSubscription + refresh family', {
-        familyId: nextFamily.id,
-        is_active_before_sync: nextFamily.is_active,
-      });
-      await syncRevenueCatSubscription();
-      nextFamily = await getFamily(userId);
-      gateLog('resolveUserData: after edge sync', {
-        familyId: nextFamily?.id,
-        is_active: nextFamily?.is_active,
-      });
-      if (nextFamily && !nextFamily.is_active) {
-        const rcActive = await checkSubscription();
-        gateLog('resolveUserData: family still inactive; SDK checkSubscription', { rcActive });
-        if (rcActive) {
-          const tier = await getSubscriptionTier();
-          const { count, error: countErr } = await supabase
-            .from('family_members')
-            .select('*', { count: 'exact', head: true })
-            .eq('family_id', nextFamily.id);
-          if (!countErr) {
-            const maxMembers = resolveMaxMembersForTier(tier.maxMembers, count ?? 0);
-            const { error: patchErr } = await supabase
-              .from('families')
-              .update({ is_active: true, max_members: maxMembers })
-              .eq('id', nextFamily.id);
-            gateLog('resolveUserData: client reconciliation patch family', {
-              maxMembers,
-              patchErr: patchErr?.message ?? null,
-            });
-            if (!patchErr) {
-              nextFamily = await getFamily(userId);
+    if (memberRow?.role === 'owner') {
+      if (SKIP_PAYWALL) {
+        if (!nextFamily.is_active) {
+          const { error: bypassPatchErr } = await supabase
+            .from('families')
+            .update({ is_active: true, max_members: DEV_DEFAULT_MAX_MEMBERS })
+            .eq('id', nextFamily.id);
+          gateLog('resolveUserData: SKIP_PAYWALL owner inactive → patch family', {
+            patchErr: bypassPatchErr?.message ?? null,
+          });
+          if (!bypassPatchErr) {
+            nextFamily = await getFamily(userId);
+          }
+        }
+      } else if (REVENUECAT_ENABLED) {
+        gateLog('resolveUserData: owner → syncRevenueCatSubscription + refresh family', {
+          familyId: nextFamily.id,
+          is_active_before_sync: nextFamily.is_active,
+        });
+        await syncRevenueCatSubscription();
+        nextFamily = await getFamily(userId);
+        gateLog('resolveUserData: after edge sync', {
+          familyId: nextFamily?.id,
+          is_active: nextFamily?.is_active,
+        });
+        if (nextFamily && !nextFamily.is_active) {
+          const rcActive = await checkSubscription();
+          gateLog('resolveUserData: family still inactive; SDK checkSubscription', { rcActive });
+          if (rcActive) {
+            const tier = await getSubscriptionTier();
+            const { count, error: countErr } = await supabase
+              .from('family_members')
+              .select('*', { count: 'exact', head: true })
+              .eq('family_id', nextFamily.id);
+            if (!countErr) {
+              const maxMembers = resolveMaxMembersForTier(tier.maxMembers, count ?? 0);
+              const { error: patchErr } = await supabase
+                .from('families')
+                .update({ is_active: true, max_members: maxMembers })
+                .eq('id', nextFamily.id);
+              gateLog('resolveUserData: client reconciliation patch family', {
+                maxMembers,
+                patchErr: patchErr?.message ?? null,
+              });
+              if (!patchErr) {
+                nextFamily = await getFamily(userId);
+              }
             }
           }
         }
@@ -172,7 +190,7 @@ export function useAppGate(user: SupabaseUser | null): AppGateData {
         nextFamily = resolved.family;
         nextMembership = resolved.membership;
         nextPending = resolved.pendingInvite;
-        nextHasSub = await checkSubscription();
+        nextHasSub = SKIP_PAYWALL ? true : await checkSubscription();
       } else {
         prevUserId.current = null;
         nextPending = await loadPendingInviteCode();
@@ -215,7 +233,7 @@ export function useAppGate(user: SupabaseUser | null): AppGateData {
         setWelcomed(false);
         setPendingInvite(null);
       }
-      setHasSubscription(REVENUECAT_ENABLED ? false : true);
+      setHasSubscription(SKIP_PAYWALL || !REVENUECAT_ENABLED);
       setProfile(null);
       setFamily(null);
       setMembership(null);
@@ -263,6 +281,7 @@ function computeTarget(state: {
   pendingInvite: string | null;
 }): AppGateTarget {
   const { welcomed, hasSubscription, user, profile, family, isOwner, pendingInvite } = state;
+  const subOk = SKIP_PAYWALL || !!hasSubscription;
 
   if (welcomed === null || hasSubscription === null) {
     return '/(auth)/welcome';
@@ -270,8 +289,8 @@ function computeTarget(state: {
 
   if (!welcomed) return '/(auth)/welcome';
 
-  if (!hasSubscription && !user) return '/paywall';
-  if (!hasSubscription && user && !family && !pendingInvite) return '/paywall';
+  if (!subOk && !user) return '/paywall';
+  if (!subOk && user && !family && !pendingInvite) return '/paywall';
 
   if (!user) return '/(auth)/login';
 
@@ -281,7 +300,7 @@ function computeTarget(state: {
 
   if (!family) return '/(onboarding)/create-family';
 
-  if (!family.is_active) {
+  if (!family.is_active && !SKIP_PAYWALL) {
     return isOwner ? '/paywall' : '/(onboarding)/sub-expired';
   }
 

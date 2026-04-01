@@ -76,7 +76,11 @@ export default function PaywallScreen() {
                 .from('families')
                 .update({ is_active: true, max_members: maxMembers })
                 .eq('id', owned.id);
-              pwLog('Supabase families update', { familyId: owned.id, maxMembers, error: upErr?.message ?? null });
+              pwLog('Supabase families update', {
+                familyId: owned.id,
+                maxMembers,
+                error: upErr?.message ?? null,
+              });
             }
           }
         }
@@ -112,7 +116,9 @@ export default function PaywallScreen() {
     try {
       const RevenueCatUI = (await import('react-native-purchases-ui')).default;
       const { PAYWALL_RESULT } = await import('react-native-purchases-ui');
-      pwLog('presentPaywallIfNeeded start', { requiredEntitlementIdentifier: REQUIRED_ENTITLEMENT_ID });
+      pwLog('presentPaywallIfNeeded start', {
+        requiredEntitlementIdentifier: REQUIRED_ENTITLEMENT_ID,
+      });
       const result = await RevenueCatUI.presentPaywallIfNeeded({
         requiredEntitlementIdentifier: REQUIRED_ENTITLEMENT_ID,
       });

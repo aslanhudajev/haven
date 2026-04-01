@@ -4,6 +4,34 @@ Everything that is missing, broken, half-built, or needs attention before this a
 
 ---
 
+## 0. Temporary — Revert paywall bypass (after Lunar / Apple banking is fixed)
+
+**Context:** Paid Apps / banking on App Store Connect was blocked (Lunar bank issues), so the App Store paywall gate is **disabled** in code. Users go: welcome → login → onboarding → app without seeing `/paywall`. New families are activated in Postgres without a RevenueCat entitlement (same path as the old “no RC” dev behavior).
+
+**When Lunar / Apple payouts are sorted and subscriptions can be sold again, do this:**
+
+- [ ] **Flip the master switch:** In [`src/shared/config/billingGate.ts`](src/shared/config/billingGate.ts), set **`SKIP_PAYWALL`** to **`false`**. That alone restores normal gate routing (anonymous + signed-in users without a sub are sent to `/paywall` again; owners with `families.is_active === false` go to paywall, members to sub-expired).
+
+- [ ] **No other file edits are required** for the gate: [`useAppGate.ts`](src/application/providers/AppGateProvider/useAppGate.ts) already branches on `SKIP_PAYWALL`. Leaving the flag in place at `false` keeps the “easy plug” for future emergencies.
+
+- [ ] **Create-family behavior:** [`CreateFamilyScreen.tsx`](src/screens/create-family/ui/CreateFamilyScreen.tsx) uses `if (!REVENUECAT_ENABLED || SKIP_PAYWALL)` to set `is_active: true` and `max_members: DEV_DEFAULT_MAX_MEMBERS`. With **`SKIP_PAYWALL === false`**, production builds with RevenueCat enabled go back to the **RC sync + `checkSubscription()`** path only—families stay inactive until purchase/webhook/client reconciliation works.
+
+- [ ] **Ship a new build** after flipping the flag (the value is compiled into the binary).
+
+- [ ] **Sanity-check before release:** Paid Apps agreement + banking active in ASC, **production** RevenueCat public SDK key in EAS, products/entitlements/offerings aligned, optional App Store Server Notifications URL → RevenueCat. Test **sandbox purchase** on a TestFlight build after revert.
+
+- [ ] **App gate — `resolveUserData` owner reconciliation (bypass-only path):** In [`useAppGate.ts`](src/application/providers/AppGateProvider/useAppGate.ts), inside `resolveUserData`, after loading `family` + `family_members` for the current user:
+
+  - **While `SKIP_PAYWALL` is `true`:** If the user is the **owner** and `families.is_active` is **`false`**, the client runs a **direct Supabase update** on that family row: `is_active: true`, `max_members: DEV_DEFAULT_MAX_MEMBERS` (same default as create-family / dev). It then **re-fetches** the family via `getFamily(userId)`. It does **not** call `syncRevenueCatSubscription()`, `checkSubscription()`, `getSubscriptionTier()`, or `resolveMaxMembersForTier()` on that path—so no edge sync and no SDK entitlement check for this reconciliation.
+
+  - **Purpose:** Fixes **legacy or edge-case rows** that stayed inactive in Postgres during bypass (e.g. family created before the create-family patch, or owner never got a successful RC reconciliation). Without this, the gate would still let users in (other `SKIP_PAYWALL` branches), but **`family.is_active` could remain `false`** in context—bad for paywall renewal copy, consistency, and anything that reads the row later.
+
+  - **After revert (`SKIP_PAYWALL === false`):** The bypass block is skipped. Owners with inactive families go through the **normal** branch again: `REVENUECAT_ENABLED` → `syncRevenueCatSubscription()` → refresh family → if still inactive, `checkSubscription()` and tier-based `max_members` patch. **You do not need to delete this code** when turning the bypass off; it becomes dead for the `SKIP_PAYWALL` branch only.
+
+  - **Optional later cleanup:** If you want zero temporary branching in the gate file, you could remove the entire `if (SKIP_PAYWALL) { … owner inactive patch … }` block once bypass is permanently gone—but only after you are sure you will never ship another “emergency” bypass; otherwise keeping it behind `SKIP_PAYWALL` preserves the single-switch story.
+
+---
+
 ## 1. RevenueCat ↔ Supabase Identity Gap (Critical)
 
 The current "pay-first" flow has a fundamental timing problem:
@@ -167,6 +195,7 @@ The current "pay-first" flow has a fundamental timing problem:
 
 ## Priority Order (suggested)
 
+0. **Revert `SKIP_PAYWALL`** (section 0) — as soon as Lunar / Apple banking allows real IAP; until then keep bypass for TestFlight/production testers.
 1. **RevenueCat ↔ Supabase identity reconciliation** — the subscription model is broken without this
 2. **Multi-family membership guard** — data integrity issue
 3. **Invite flow edge cases** (already-in-family, expired, used, signed-in user)

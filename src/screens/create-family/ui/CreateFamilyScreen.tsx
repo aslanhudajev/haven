@@ -14,6 +14,7 @@ import {
   resolveMaxMembersForTier,
   syncRevenueCatSubscription,
 } from '@entities/subscription';
+import { SKIP_PAYWALL } from '@shared/config/billingGate';
 import { supabase } from '@shared/config/supabase';
 import { runSerialized } from '@shared/lib/async';
 import { periodLog } from '@shared/lib/debug';
@@ -92,7 +93,7 @@ export default function CreateFamilyScreen() {
         });
       });
 
-      if (!REVENUECAT_ENABLED) {
+      if (!REVENUECAT_ENABLED || SKIP_PAYWALL) {
         await supabase
           .from('families')
           .update({ is_active: true, max_members: DEV_DEFAULT_MAX_MEMBERS })

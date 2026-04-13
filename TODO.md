@@ -32,6 +32,22 @@ Everything that is missing, broken, half-built, or needs attention before this a
 
 ---
 
+## 0b. Optional rollback — Auth + OTP gate fixes (household-intent era)
+
+**Context:** After adding **intra-`(auth)` redirects** (so `household-intent` / `enter-invite-code` / `login` stay in sync with the gate), signed-out users on **`/(auth)/verify-otp`** still had gate target **`/(auth)/login`**, so the redirect **yanked them off the OTP screen** on every `evaluate`. Separate hardening was added so React `user` matches Supabase quickly after OTP.
+
+**If something regresses and you need to undo this cluster, touch these files in order:**
+
+- [ ] **[`AppGateProvider.tsx`](src/application/providers/AppGateProvider/AppGateProvider.tsx)** — **`isVerifyOtpRoute`** and the split intra-group block: onboarding still redirects inside `(onboarding)`; `(auth)` redirects **except** when `segments[1] === 'verify-otp'`. **Do not delete only this guard** while keeping a blanket “any `(auth)` path ≠ target → Redirect” rule, or the OTP jump bug returns. If you collapse auth redirects again, you need another way to allow OTP while signed out (e.g. gate target `verify-otp` while on that screen—larger change).
+
+- [ ] **[`AuthProvider.tsx`](src/application/providers/AuthProvider/AuthProvider.tsx)** — **`getSession()` on mount** (hydrate before listener); **`onAuthStateChange` updates `user` synchronously** (removed `setTimeout(0)` that delayed `setUser`); **`refreshSessionUser()`** on context (`getSession` + `setUser`); **`__DEV__` `[Haven:auth]` logs**. Rollback sketch: single `useEffect` with `onAuthStateChange` only; if you restore `setTimeout` around `setUser`, expect possible one-frame races with `AppGate` again. Remove `refreshSessionUser` from the context type, default context, and provider `value`.
+
+- [ ] **[`VerifyOtpScreen.tsx`](src/screens/verify-otp/ui/VerifyOtpScreen.tsx)** — After successful **`verifyOtp`**, **`await refreshSessionUser()`** (plus `useAuth` import). Remove the call and import if you drop `refreshSessionUser` from Auth.
+
+**Recommendation:** Treat **§0b AppGate `verify-otp` exception** as **required** for email OTP + gate as long as the gate targets `login` for signed-out users. The **AuthProvider / `refreshSessionUser`** pieces are **optional to remove** once you’re confident `onAuthStateChange` alone is enough (e.g. after shipping and watching crash/logs).
+
+---
+
 ## 1. RevenueCat ↔ Supabase Identity Gap (Critical)
 
 The current "pay-first" flow has a fundamental timing problem:

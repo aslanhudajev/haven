@@ -43,6 +43,11 @@ function currentPathFromSegments(segments: string[]): string {
   return '/' + segments.join('/');
 }
 
+/** User is signed out until OTP succeeds; gate target is still `login`, so do not force-leave this screen. */
+function isVerifyOtpRoute(segments: string[]): boolean {
+  return segments[0] === '(auth)' && segments[1] === 'verify-otp';
+}
+
 /**
  * Cast gate targets to Expo Router `Href`. Generated route types can lag new screens until dev server
  * runs; `invite-pending` is never passed here (handled above).
@@ -80,10 +85,13 @@ function AppGateRedirect() {
   }
 
   if (currentGroup === targetGroup) {
-    if (
-      (currentGroup === '(onboarding)' || currentGroup === '(auth)') &&
-      currentPath !== targetRoute
-    ) {
+    if (currentGroup === '(onboarding)' && currentPath !== targetRoute) {
+      return <Redirect href={gateHref(targetRoute)} />;
+    }
+    if (currentGroup === '(auth)' && currentPath !== targetRoute) {
+      if (isVerifyOtpRoute(segments)) {
+        return null;
+      }
       return <Redirect href={gateHref(targetRoute)} />;
     }
     return null;

@@ -181,9 +181,7 @@ function MembersSection({
         `If the link doesn’t work, open FiftyFifty, choose “Join a household,” and enter this code:`,
         invite.code,
       ].join('\n');
-      await Share.share(
-        Platform.OS === 'ios' ? { message, url: link } : { message },
-      );
+      await Share.share(Platform.OS === 'ios' ? { message, url: link } : { message });
     } catch (err: unknown) {
       Alert.alert('Error', getErrorMessage(err, 'Could not create invite'));
     } finally {

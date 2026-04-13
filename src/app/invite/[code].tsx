@@ -1,8 +1,10 @@
-import { useAppGateContext } from '@app/providers/AppGateProvider';
-import { useAuth } from '@app/providers/AuthProvider';
-import { isJoinFamilyError, joinFamily } from '@entities/family';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View, useColorScheme } from 'react-native';
+
+import { isJoinFamilyError, joinFamily } from '@entities/family';
 import {
   APP_STORAGE_PENDING_INVITE_KEY,
   clearHouseholdIntent,
@@ -10,9 +12,8 @@ import {
 } from '@shared/lib/storage';
 import { Colors } from '@shared/lib/theme';
 import { Button } from '@shared/ui';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { useAppGateContext } from '@app/providers/AppGateProvider';
+import { useAuth } from '@app/providers/AuthProvider';
 
 export default function InviteScreen() {
   const { code } = useLocalSearchParams<{ code: string }>();

@@ -16,12 +16,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { verifyOtp, requestOtp } from '@entities/auth';
 import { getErrorMessage } from '@shared/lib/errors';
 import { Colors } from '@shared/lib/theme';
+import { useAuth } from '@app/providers/AuthProvider';
 
 const OTP_LENGTH = 6;
 
 export default function VerifyOtpScreen() {
   const { email } = useLocalSearchParams<{ email: string }>();
   const router = useRouter();
+  const { refreshSessionUser } = useAuth();
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
   const insets = useSafeAreaInsets();
@@ -44,6 +46,7 @@ export default function VerifyOtpScreen() {
       setVerifying(true);
       try {
         await verifyOtp(email!, cleaned);
+        await refreshSessionUser();
       } catch (err: unknown) {
         Alert.alert('Invalid code', getErrorMessage(err, 'Please try again'));
         setCode('');

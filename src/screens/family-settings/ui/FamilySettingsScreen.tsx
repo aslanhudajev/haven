@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Alert,
+  Platform,
   Pressable,
   ScrollView,
   Share,
@@ -172,9 +173,15 @@ function MembersSection({
     try {
       const invite = await createInvite(family.id, user.id);
       const link = inviteDeepLink(invite.code);
-      await Share.share({
-        message: `Join my family "${family.name}" on FiftyFifty!\n\n${link}`,
-      });
+      const message = [
+        `Join my family "${family.name}" on FiftyFifty!`,
+        '',
+        `Open in the app: ${link}`,
+        '',
+        `If the link doesn’t work, open FiftyFifty, choose “Join a household,” and enter this code:`,
+        invite.code,
+      ].join('\n');
+      await Share.share(Platform.OS === 'ios' ? { message, url: link } : { message });
     } catch (err: unknown) {
       Alert.alert('Error', getErrorMessage(err, 'Could not create invite'));
     } finally {

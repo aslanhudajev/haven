@@ -1,9 +1,15 @@
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View, useColorScheme } from 'react-native';
+
 import { isJoinFamilyError, joinFamily } from '@entities/family';
-import { APP_STORAGE_PENDING_INVITE_KEY } from '@shared/lib/storage';
+import {
+  APP_STORAGE_PENDING_INVITE_KEY,
+  clearHouseholdIntent,
+  saveHouseholdIntent,
+} from '@shared/lib/storage';
 import { Colors } from '@shared/lib/theme';
 import { Button } from '@shared/ui';
 import { useAppGateContext } from '@app/providers/AppGateProvider';
@@ -22,6 +28,7 @@ export default function InviteScreen() {
   const handleAccept = async () => {
     if (!code) return;
     await AsyncStorage.setItem(APP_STORAGE_PENDING_INVITE_KEY, code);
+    await saveHouseholdIntent('join');
 
     if (!user) {
       router.replace('/(auth)/login');
@@ -49,6 +56,7 @@ export default function InviteScreen() {
 
   const handleDeny = async () => {
     await AsyncStorage.removeItem(APP_STORAGE_PENDING_INVITE_KEY);
+    await clearHouseholdIntent();
     refresh();
     router.replace('/');
   };
@@ -67,7 +75,9 @@ export default function InviteScreen() {
   if (error) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <Text style={styles.emoji}>😕</Text>
+        <View style={[styles.heroIconWrap, { backgroundColor: theme.backgroundElement }]}>
+          <Ionicons name="alert-circle-outline" size={40} color={theme.accent} />
+        </View>
         <Text style={[styles.title, { color: theme.text }]}>Oops</Text>
         <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{error}</Text>
         <Button
@@ -81,7 +91,9 @@ export default function InviteScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <Text style={styles.emoji}>🔗</Text>
+      <View style={[styles.heroIconWrap, { backgroundColor: theme.backgroundElement }]}>
+        <Ionicons name="link-outline" size={40} color={theme.accent} />
+      </View>
       <Text style={[styles.title, { color: theme.text }]}>Family Invite</Text>
       <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
         You've been invited to join a family on FiftyFifty.
@@ -101,7 +113,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 32,
   },
-  emoji: { fontSize: 56, marginBottom: 16 },
+  heroIconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
   title: { fontSize: 28, fontWeight: '700', marginBottom: 8 },
   subtitle: { fontSize: 17, textAlign: 'center', lineHeight: 24 },
   actions: { marginTop: 32, width: '100%', gap: 12 },

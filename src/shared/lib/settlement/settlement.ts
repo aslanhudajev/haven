@@ -1,7 +1,9 @@
-type SpendEntry = {
+export type SpendEntry = {
   userId: string;
   name: string;
   totalCents: number;
+  /** Monthly income in cents; when all members set, fair share is income-weighted. */
+  incomeCents?: number | null;
 };
 
 export type Settlement = {
@@ -9,6 +11,34 @@ export type Settlement = {
   to: { userId: string; name: string };
   amountCents: number;
 };
+
+function fairShareCents(entries: SpendEntry[], total: number): Map<string, number> {
+  const map = new Map<string, number>();
+  const allHaveIncome = entries.every((e) => e.incomeCents != null && (e.incomeCents ?? 0) > 0);
+  const totalIncome = allHaveIncome ? entries.reduce((sum, e) => sum + (e.incomeCents ?? 0), 0) : 0;
+
+  if (allHaveIncome && totalIncome > 0) {
+    entries.forEach((e) => {
+      map.set(e.userId, Math.round(total * ((e.incomeCents ?? 0) / totalIncome)));
+    });
+    return map;
+  }
+
+  const even = Math.round(total / entries.length);
+  entries.forEach((e) => map.set(e.userId, even));
+  return map;
+}
+
+/** Returns userId -> share percent (0–100) when income split applies; otherwise null. */
+export function computeSplitRatio(entries: SpendEntry[]): Map<string, number> | null {
+  const allHaveIncome = entries.every((e) => e.incomeCents != null && (e.incomeCents ?? 0) > 0);
+  if (!allHaveIncome || entries.length < 2) return null;
+  const totalIncome = entries.reduce((sum, e) => sum + (e.incomeCents ?? 0), 0);
+  if (totalIncome <= 0) return null;
+  const map = new Map<string, number>();
+  entries.forEach((e) => map.set(e.userId, Math.round(((e.incomeCents ?? 0) / totalIncome) * 100)));
+  return map;
+}
 
 /**
  * Given each member's total spend, calculates the minimum set of transfers
@@ -19,12 +49,12 @@ export function calculateSettlements(entries: SpendEntry[]): Settlement[] {
   if (entries.length < 2) return [];
 
   const total = entries.reduce((sum, e) => sum + e.totalCents, 0);
-  const fair = Math.round(total / entries.length);
+  const fairByUser = fairShareCents(entries, total);
 
   const balances = entries.map((e) => ({
     userId: e.userId,
     name: e.name,
-    balance: e.totalCents - fair,
+    balance: e.totalCents - (fairByUser.get(e.userId) ?? 0),
   }));
 
   const debtors = balances.filter((b) => b.balance < 0).sort((a, b) => a.balance - b.balance);

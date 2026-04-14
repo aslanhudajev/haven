@@ -401,3 +401,9 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/notify-period-end-push/deno.json"
 entrypoint = "./functions/notify-period-end-push/index.ts"
+
+[functions.delete-account]
+enabled = true
+verify_jwt = false
+import_map = "./functions/delete-account/deno.json"
+entrypoint = "./functions/delete-account/index.ts"

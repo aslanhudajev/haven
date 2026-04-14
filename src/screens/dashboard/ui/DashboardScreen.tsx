@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -12,12 +13,23 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BalanceCardWidget } from '@widgets/balance-card';
+import { BudgetProgressWidget } from '@widgets/budget-progress';
+import { GoalsSummaryWidget } from '@widgets/goals-summary';
 import { PurchaseListWidget } from '@widgets/purchase-list';
+import { getCategories, useCategoryStore } from '@entities/category';
+import { getCategoryBudgets, useCategoryBudgetStore } from '@entities/category-budget';
 import { useFamilyStore, getFamily, getMembers } from '@entities/family';
+import { getGoals, useGoalStore } from '@entities/goal';
 import { usePeriodStore, ensureActivePeriodForDashboard } from '@entities/period';
-import { usePurchaseStore, getPurchases } from '@entities/purchase';
+import {
+  claimRecurringPurchase,
+  deletePurchase,
+  getPurchases,
+  usePurchaseStore,
+} from '@entities/purchase';
 import { runSerialized } from '@shared/lib/async';
 import { periodLog } from '@shared/lib/debug';
+import { getErrorMessage } from '@shared/lib/errors';
 import { formatDateRange } from '@shared/lib/format';
 import { Colors, Spacing } from '@shared/lib/theme';
 import { useAppGateContext } from '@app/providers/AppGateProvider';
@@ -40,6 +52,15 @@ export default function DashboardScreen() {
 
   const purchases = usePurchaseStore((s) => s.purchases);
   const setPurchases = usePurchaseStore((s) => s.setPurchases);
+  const removePurchase = usePurchaseStore((s) => s.removePurchase);
+  const updatePurchaseInList = usePurchaseStore((s) => s.updatePurchaseInList);
+
+  const setCategories = useCategoryStore((s) => s.setCategories);
+  const categories = useCategoryStore((s) => s.categories);
+  const setCategoryBudgets = useCategoryBudgetStore((s) => s.setBudgets);
+  const categoryBudgets = useCategoryBudgetStore((s) => s.budgets);
+  const setGoals = useGoalStore((s) => s.setGoals);
+  const goals = useGoalStore((s) => s.goals);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -73,9 +94,17 @@ export default function DashboardScreen() {
         setActivePeriod(currentPeriod);
 
         if (currentPeriod) {
-          const p = await getPurchases(currentPeriod.id);
+          const [p, cats, budgets, goalList] = await Promise.all([
+            getPurchases(currentPeriod.id),
+            getCategories(family.id),
+            getCategoryBudgets(family.id),
+            getGoals(family.id),
+          ]);
           if (cancelled) return;
           setPurchases(p);
+          setCategories(cats);
+          setCategoryBudgets(budgets);
+          setGoals(goalList);
         }
       } catch (err) {
         console.warn('Dashboard load error:', err);
@@ -106,7 +135,16 @@ export default function DashboardScreen() {
         );
         setActivePeriod(period);
         if (period) {
-          setPurchases(await getPurchases(period.id));
+          const [p, cats, budgets, goalList] = await Promise.all([
+            getPurchases(period.id),
+            getCategories(fam.id),
+            getCategoryBudgets(fam.id),
+            getGoals(fam.id),
+          ]);
+          setPurchases(p);
+          setCategories(cats);
+          setCategoryBudgets(budgets);
+          setGoals(goalList);
         }
       }
     } catch (err) {
@@ -172,6 +210,15 @@ export default function DashboardScreen() {
           currency={family.currency}
         />
 
+        <BudgetProgressWidget
+          purchases={purchases}
+          categories={categories}
+          categoryBudgets={categoryBudgets}
+          currency={family.currency}
+        />
+
+        <GoalsSummaryWidget goals={goals} />
+
         <View style={styles.listHeader}>
           <Text style={[styles.listTitle, { color: theme.text }]}>Purchases</Text>
         </View>
@@ -179,12 +226,30 @@ export default function DashboardScreen() {
         <PurchaseListWidget
           currentUserId={user!.id}
           currency={family.currency}
+          categories={categories}
           onPressPurchase={(p) =>
             router.push({
               pathname: '/(app)/edit-purchase',
               params: { purchaseId: p.id },
             })
           }
+          onDeletePurchase={async (p) => {
+            try {
+              await deletePurchase(p.id);
+              removePurchase(p.id);
+            } catch (err: unknown) {
+              Alert.alert('Error', getErrorMessage(err, 'Could not delete purchase'));
+            }
+          }}
+          onClaimRecurring={async (p) => {
+            if (!user) return;
+            try {
+              await claimRecurringPurchase(p.id, user.id);
+              updatePurchaseInList({ ...p, user_id: user.id });
+            } catch (err: unknown) {
+              Alert.alert('Error', getErrorMessage(err, 'Could not update purchase'));
+            }
+          }}
         />
       </ScrollView>
 

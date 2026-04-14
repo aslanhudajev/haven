@@ -5,6 +5,7 @@ export { getPurchaseById } from './libs/getPurchaseById';
 export { addPurchase } from './libs/addPurchase';
 export { updatePurchase } from './libs/updatePurchase';
 export { deletePurchase } from './libs/deletePurchase';
+export { claimRecurringPurchase } from './libs/claimRecurringPurchase';
 export { uploadReceipt } from './libs/uploadReceipt';
 export {
   getReceiptSignedUrl,

@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
@@ -17,6 +18,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { z } from 'zod';
+import { CategoryPickerWidget } from '@widgets/category-picker';
+import { getCategories } from '@entities/category';
 import { usePeriodStore, ensureActivePeriodForDashboard } from '@entities/period';
 import { addPurchase, uploadReceipt, usePurchaseStore } from '@entities/purchase';
 import { runSerialized } from '@shared/lib/async';
@@ -53,6 +56,26 @@ export default function AddPurchaseScreen() {
   const [periodLoading, setPeriodLoading] = useState(!storePeriod);
   const [activePeriod, setLocalPeriod] = useState(storePeriod);
   const [receiptUri, setReceiptUri] = useState<string | null>(null);
+  const [categories, setCategories] = useState<Awaited<ReturnType<typeof getCategories>>>([]);
+  const [categoryId, setCategoryId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!family?.id) return;
+    let cancelled = false;
+    getCategories(family.id)
+      .then((list) => {
+        if (cancelled) return;
+        setCategories(list);
+        const other = list.find((c) => c.name === 'Other');
+        setCategoryId((prev) => prev ?? other?.id ?? list[0]?.id ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setCategories([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [family?.id]);
 
   useEffect(() => {
     if (activePeriod || !family) return;
@@ -138,6 +161,7 @@ export default function AddPurchaseScreen() {
         amount_cents: toCents(parseFloat(amount)),
         description: description || undefined,
         receipt_url,
+        category_id: categoryId,
       });
 
       addPurchaseToStore(purchase);
@@ -206,6 +230,14 @@ export default function AddPurchaseScreen() {
           )}
         />
 
+        {categories.length > 0 && categoryId ? (
+          <CategoryPickerWidget
+            categories={categories}
+            selectedId={categoryId}
+            onSelect={setCategoryId}
+          />
+        ) : null}
+
         <View style={styles.receiptSection}>
           <Text style={[styles.receiptLabel, { color: theme.textSecondary }]}>Receipt</Text>
           <View style={styles.receiptButtons}>
@@ -213,13 +245,15 @@ export default function AddPurchaseScreen() {
               style={[styles.receiptBtn, { backgroundColor: theme.backgroundElement }]}
               onPress={takePhoto}
             >
-              <Text style={[styles.receiptBtnText, { color: theme.text }]}>📷 Camera</Text>
+              <Ionicons name="camera-outline" size={20} color={theme.text} />
+              <Text style={[styles.receiptBtnText, { color: theme.text }]}>Camera</Text>
             </Pressable>
             <Pressable
               style={[styles.receiptBtn, { backgroundColor: theme.backgroundElement }]}
               onPress={pickReceipt}
             >
-              <Text style={[styles.receiptBtnText, { color: theme.text }]}>🖼️ Gallery</Text>
+              <Ionicons name="images-outline" size={20} color={theme.text} />
+              <Text style={[styles.receiptBtnText, { color: theme.text }]}>Gallery</Text>
             </Pressable>
           </View>
           {receiptUri && <Image source={{ uri: receiptUri }} style={styles.receiptPreview} />}
@@ -251,6 +285,8 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 44,
     borderRadius: 10,
+    flexDirection: 'row',
+    gap: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },

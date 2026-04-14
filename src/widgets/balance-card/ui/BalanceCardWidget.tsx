@@ -2,7 +2,7 @@ import { StyleSheet, Text, View, useColorScheme } from 'react-native';
 import type { FamilyMember } from '@entities/family';
 import type { Purchase } from '@entities/purchase';
 import { formatMoney } from '@shared/lib/format';
-import { calculateSettlements, type Settlement } from '@shared/lib/settlement';
+import { calculateSettlements, computeSplitRatio, type Settlement } from '@shared/lib/settlement';
 import { Colors, Spacing } from '@shared/lib/theme';
 
 type Props = {
@@ -24,16 +24,30 @@ export function BalanceCardWidget({ purchases, members, budgetCents, currency = 
     totalCents: purchases
       .filter((p) => p.user_id === m.user_id)
       .reduce((sum, p) => sum + p.amount_cents, 0),
+    incomeCents: m.income_cents,
   }));
 
   const settlements = calculateSettlements(spendByUser);
+  const splitRatio = computeSplitRatio(spendByUser);
+  const splitLabel =
+    splitRatio && members.length >= 2
+      ? members
+          .map((m) => {
+            const p = splitRatio.get(m.user_id);
+            return p != null ? `${m.profile?.full_name || 'Member'} ${p}%` : null;
+          })
+          .filter(Boolean)
+          .join(' · ')
+      : null;
 
   return (
     <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
       <View style={styles.topRow}>
         <View>
           <Text style={[styles.label, { color: theme.textSecondary }]}>Total spent</Text>
-          <Text style={[styles.amount, { color: theme.text }]}>{formatMoney(totalSpent)}</Text>
+          <Text style={[styles.amount, { color: theme.text }]}>
+            {formatMoney(totalSpent, currency)}
+          </Text>
         </View>
         {budgetCents != null && (
           <View style={styles.budgetCol}>
@@ -58,6 +72,12 @@ export function BalanceCardWidget({ purchases, members, budgetCents, currency = 
           />
         </View>
       )}
+
+      {splitLabel ? (
+        <Text style={[styles.splitHint, { color: theme.textSecondary }]}>
+          Fair split (income): {splitLabel}
+        </Text>
+      ) : null}
 
       {spendByUser.length > 0 && (
         <View style={styles.breakdown}>
@@ -100,6 +120,7 @@ const styles = StyleSheet.create({
   budgetAmount: { fontSize: 20, fontWeight: '600' },
   progressTrack: { height: 6, borderRadius: 3, marginTop: 16, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 3 },
+  splitHint: { fontSize: 13, marginTop: 12, lineHeight: 18 },
   breakdown: { marginTop: 20, gap: 8 },
   breakdownRow: { flexDirection: 'row', justifyContent: 'space-between' },
   breakdownName: { fontSize: 15 },

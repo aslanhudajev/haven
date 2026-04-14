@@ -19,6 +19,7 @@ export type FamilyMember = {
   user_id: string;
   role: 'owner' | 'member';
   joined_at: string;
+  income_cents: number | null;
   profile?: {
     full_name: string | null;
     avatar_url: string | null;

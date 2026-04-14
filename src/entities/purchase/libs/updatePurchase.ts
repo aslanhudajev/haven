@@ -5,6 +5,7 @@ type UpdatePurchasePatch = {
   amount_cents?: number;
   description?: string | null;
   receipt_url?: string | null;
+  category_id?: string | null;
 };
 
 export async function updatePurchase(

@@ -1,6 +1,9 @@
+import { supabase } from '@shared/config/supabase';
 import { periodLog } from '@shared/lib/debug';
 import { toLocalCalendarISODate } from '@shared/lib/format';
 import type { Cadence } from '@shared/lib/period';
+import { getRecurringCosts } from '../../recurring-cost/libs/getRecurringCosts';
+import { insertRecurringPurchasesForPeriod } from '../../recurring-cost/libs/insertRecurringPurchasesForPeriod';
 import { archivePeriod } from './archivePeriod';
 import { createPeriod } from './createPeriod';
 import { getActivePeriod } from './getPeriods';
@@ -28,6 +31,7 @@ export async function ensureActivePeriodForDashboard(params: {
   const today = toLocalCalendarISODate(new Date());
 
   let current = await getActivePeriod(familyId);
+  let createdNewPeriod = false;
 
   periodLog('ensure.enter', {
     familyId,
@@ -50,6 +54,7 @@ export async function ensureActivePeriodForDashboard(params: {
         anchorDay,
         afterEndsAt: endedAt,
       });
+      createdNewPeriod = true;
     } catch (err) {
       if (!isUniqueViolation(err)) throw err;
       periodLog('ensure.rotate_unique_race', { familyId });
@@ -59,6 +64,7 @@ export async function ensureActivePeriodForDashboard(params: {
     periodLog('ensure.no_active_creating', { familyId });
     try {
       current = await createPeriod({ familyId, cadence, anchorDay });
+      createdNewPeriod = true;
     } catch (err) {
       if (!isUniqueViolation(err)) throw err;
       periodLog('ensure.create_unique_race', { familyId });
@@ -66,6 +72,28 @@ export async function ensureActivePeriodForDashboard(params: {
     }
   } else {
     periodLog('ensure.keep_active', { familyId, periodId: current.id });
+  }
+
+  if (createdNewPeriod && current) {
+    try {
+      const { data: fam } = await supabase
+        .from('families')
+        .select('owner_id')
+        .eq('id', familyId)
+        .single();
+      const ownerId = fam?.owner_id;
+      if (ownerId) {
+        const costs = await getRecurringCosts(familyId);
+        await insertRecurringPurchasesForPeriod({
+          familyId,
+          periodId: current.id,
+          ownerId,
+          costs,
+        });
+      }
+    } catch (e) {
+      periodLog('ensure.recurring_insert_failed', { familyId, err: String(e) });
+    }
   }
 
   return current;

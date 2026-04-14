@@ -177,7 +177,7 @@ export default function CreateFamilyScreen() {
           name="budget"
           render={({ field: { onChange, onBlur, value } }) => (
             <Input
-              label={`${budgetCadenceLabel} budget (SEK, optional)`}
+              label={`${budgetCadenceLabel} budget (optional)`}
               placeholder="e.g. 5000"
               value={value}
               onChangeText={onChange}

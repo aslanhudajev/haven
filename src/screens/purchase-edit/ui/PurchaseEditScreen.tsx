@@ -19,6 +19,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { z } from 'zod';
+import { CategoryPickerWidget } from '@widgets/category-picker';
+import { getCategories } from '@entities/category';
 import {
   deletePurchase,
   getPurchaseById,
@@ -64,8 +66,11 @@ export default function PurchaseEditScreen() {
   const [receiptUri, setReceiptUri] = useState<string | null>(null);
   const [receiptRemoved, setReceiptRemoved] = useState(false);
   const [receiptModalVisible, setReceiptModalVisible] = useState(false);
+  const [categories, setCategories] = useState<Awaited<ReturnType<typeof getCategories>>>([]);
+  const [categoryId, setCategoryId] = useState<string | null>(null);
 
   const currency = family?.currency ?? 'SEK';
+  const isRecurring = purchase?.is_recurring === true;
 
   const load = useCallback(async () => {
     if (!purchaseId) return;
@@ -96,14 +101,31 @@ export default function PurchaseEditScreen() {
   });
 
   useEffect(() => {
-    if (!purchase) return;
+    if (!purchase || !family?.id) return;
     reset({
       amount: String(fromCents(purchase.amount_cents)),
       description: purchase.description ?? '',
     });
     setReceiptUri(null);
     setReceiptRemoved(false);
-  }, [purchase, reset]);
+    setCategoryId(purchase.category_id ?? null);
+    let cancelled = false;
+    getCategories(family.id)
+      .then((list) => {
+        if (cancelled) return;
+        setCategories(list);
+        setCategoryId((current) => {
+          if (purchase.category_id) return purchase.category_id;
+          return current ?? list.find((c) => c.name === 'Other')?.id ?? list[0]?.id ?? null;
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setCategories([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [purchase, reset, family?.id]);
 
   const isOwn = !!purchase && !!user && purchase.user_id === user.id;
   const remoteReceiptSource =
@@ -159,6 +181,7 @@ export default function PurchaseEditScreen() {
         amount_cents: toCents(parseFloat(amount)),
         description: description || null,
         receipt_url: receipt_url ?? null,
+        category_id: categoryId,
       });
 
       const merged: Purchase = {
@@ -177,6 +200,13 @@ export default function PurchaseEditScreen() {
 
   const onDelete = () => {
     if (!purchase || !isOwn) return;
+    if (purchase.is_recurring === true) {
+      Alert.alert(
+        'Fixed cost',
+        'Recurring purchases are created from Fixed costs in family settings. Remove or edit the fixed cost there.',
+      );
+      return;
+    }
     Alert.alert('Delete purchase?', 'This cannot be undone.', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -296,6 +326,21 @@ export default function PurchaseEditScreen() {
           )}
         />
 
+        {categories.length > 0 && categoryId ? (
+          <CategoryPickerWidget
+            categories={categories}
+            selectedId={categoryId}
+            onSelect={setCategoryId}
+          />
+        ) : null}
+
+        {isRecurring ? (
+          <Text style={[styles.hint, { color: theme.textSecondary, marginBottom: 8 }]}>
+            This line was added from fixed costs. Use “I paid this” on the home list if the other
+            person paid it this period.
+          </Text>
+        ) : null}
+
         <View style={styles.receiptSection}>
           <Text style={[styles.receiptLabel, { color: theme.textSecondary }]}>Receipt</Text>
           <View style={styles.receiptButtons}>
@@ -337,8 +382,12 @@ export default function PurchaseEditScreen() {
 
         <View style={styles.actions}>
           <Button title="Save changes" onPress={handleSubmit(onSubmit)} loading={saving} />
-          <View style={{ height: 12 }} />
-          <Button title="Delete purchase" onPress={onDelete} variant="destructive" />
+          {!isRecurring ? (
+            <>
+              <View style={{ height: 12 }} />
+              <Button title="Delete purchase" onPress={onDelete} variant="destructive" />
+            </>
+          ) : null}
         </View>
       </ScrollView>
 

@@ -7,6 +7,9 @@ export type Purchase = {
   description: string | null;
   /** Storage object path in `receipts` bucket (`familyId/userId/file.ext`), or legacy full URL. */
   receipt_url: string | null;
+  category_id: string | null;
+  is_recurring: boolean;
+  recurring_cost_id: string | null;
   created_at: string;
   updated_at: string;
   profile?: {

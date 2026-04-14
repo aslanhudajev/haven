@@ -14,3 +14,4 @@ export { leaveFamily } from './libs/leaveFamily';
 export { removeFamilyMember } from './libs/removeFamilyMember';
 export { transferFamilyOwnership } from './libs/transferFamilyOwnership';
 export { updateFamily } from './libs/updateFamily';
+export { updateMemberIncome } from './libs/updateMemberIncome';

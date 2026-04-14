@@ -27,6 +27,10 @@ export default function AppLayout() {
       />
       <Stack.Screen name="family-settings" options={{ headerTitle: 'Family Settings' }} />
       <Stack.Screen name="period-report" options={{ headerTitle: 'Period Report' }} />
+      <Stack.Screen name="goals" options={{ headerTitle: 'Goals' }} />
+      <Stack.Screen name="create-goal" options={{ headerTitle: 'New goal' }} />
+      <Stack.Screen name="goal/[id]" options={{ headerTitle: 'Goal' }} />
+      <Stack.Screen name="recurring-costs" options={{ headerTitle: 'Fixed costs' }} />
     </Stack>
   );
 }

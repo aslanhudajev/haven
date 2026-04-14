@@ -19,8 +19,14 @@ export async function getPurchases(periodId: string): Promise<Purchase[]> {
 
   const profileMap = new Map((profiles ?? []).map((p) => [p.id, { full_name: p.full_name }]));
 
-  return purchases.map((row) => ({
-    ...row,
-    profile: profileMap.get(row.user_id) ?? null,
-  })) as Purchase[];
+  return purchases.map((row) => {
+    const r = row as Record<string, unknown>;
+    return {
+      ...row,
+      category_id: (r.category_id as string | null | undefined) ?? null,
+      is_recurring: Boolean(r.is_recurring),
+      recurring_cost_id: (r.recurring_cost_id as string | null | undefined) ?? null,
+      profile: profileMap.get(row.user_id) ?? null,
+    } as Purchase;
+  });
 }

@@ -8,6 +8,7 @@ type AddPurchaseInput = {
   amount_cents: number;
   description?: string;
   receipt_url?: string;
+  category_id?: string | null;
 };
 
 export async function addPurchase(input: AddPurchaseInput): Promise<Purchase> {
@@ -20,6 +21,7 @@ export async function addPurchase(input: AddPurchaseInput): Promise<Purchase> {
       amount_cents: input.amount_cents,
       description: input.description ?? '',
       receipt_url: input.receipt_url ?? null,
+      category_id: input.category_id ?? null,
     })
     .select()
     .single();

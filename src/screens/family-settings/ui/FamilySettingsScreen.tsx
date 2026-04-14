@@ -1,3 +1,5 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter, type Href } from 'expo-router';
 import { useState, useEffect } from 'react';
 import {
   Alert,
@@ -29,6 +31,8 @@ import { Colors, Spacing, type ThemeColors } from '@shared/lib/theme';
 import { Button, Input, Card } from '@shared/ui';
 import { useAppGateContext } from '@app/providers/AppGateProvider';
 import { useAuth } from '@app/providers/AuthProvider';
+import { HouseholdBudgetsCard } from './HouseholdBudgetsCard';
+import { IncomeSelfCard, IncomeSplitCard } from './IncomeSplitCard';
 
 const CADENCES: { value: Cadence; label: string }[] = [
   { value: 'weekly', label: 'Weekly' },
@@ -82,12 +86,19 @@ export default function FamilySettingsScreen() {
         {isOwner ? (
           <OwnerSettings
             family={gateFamily}
+            members={members}
             theme={theme}
             setFamily={setFamily}
             refresh={refresh}
           />
         ) : (
-          <MemberReadOnly family={gateFamily} theme={theme} />
+          <MemberReadOnly
+            family={gateFamily}
+            theme={theme}
+            members={members}
+            user={user}
+            refresh={refresh}
+          />
         )}
       </ScrollView>
     </View>
@@ -257,7 +268,20 @@ function MembersSection({
   );
 }
 
-function MemberReadOnly({ family, theme }: { family: Family; theme: ThemeColors }) {
+function MemberReadOnly({
+  family,
+  theme,
+  members,
+  user,
+  refresh,
+}: {
+  family: Family;
+  theme: ThemeColors;
+  members: FamilyMember[];
+  user: { id: string } | null;
+  refresh: () => void;
+}) {
+  const router = useRouter();
   const cadenceLabel =
     CADENCES.find((c) => c.value === family.period_cadence)?.label ?? family.period_cadence;
 
@@ -265,6 +289,8 @@ function MemberReadOnly({ family, theme }: { family: Family; theme: ThemeColors 
     family.period_cadence === 'monthly'
       ? `Day ${family.period_anchor_day}`
       : (WEEKDAYS[family.period_anchor_day - 1] ?? `Day ${family.period_anchor_day}`);
+
+  const selfMember = members.find((m) => m.user_id === user?.id) ?? null;
 
   return (
     <>
@@ -274,11 +300,34 @@ function MemberReadOnly({ family, theme }: { family: Family; theme: ThemeColors 
         </Text>
       </View>
 
+      <Pressable onPress={() => router.push('/(app)/recurring-costs' as Href)}>
+        <Card style={styles.section}>
+          <View style={styles.settingsLinkRow}>
+            <Text style={[styles.sectionTitle, { marginBottom: 0, color: theme.textSecondary }]}>
+              Fixed costs
+            </Text>
+            <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+          </View>
+          <Text style={[styles.hintMuted, { color: theme.textSecondary }]}>
+            Rent, subscriptions, and other recurring items
+          </Text>
+        </Card>
+      </Pressable>
+
+      <IncomeSelfCard
+        member={selfMember}
+        currency={family.currency}
+        theme={theme}
+        refresh={refresh}
+      />
+
       <Card style={styles.section}>
         <ReadOnlyRow label="Family name" value={family.name} theme={theme} />
         <ReadOnlyRow
           label="Budget"
-          value={family.budget_cents ? formatMoney(family.budget_cents) : 'Not set'}
+          value={
+            family.budget_cents ? formatMoney(family.budget_cents, family.currency) : 'Not set'
+          }
           theme={theme}
         />
         <ReadOnlyRow label="Currency" value={family.currency} theme={theme} />
@@ -310,15 +359,18 @@ function ReadOnlyRow({
 
 function OwnerSettings({
   family,
+  members,
   theme,
   setFamily,
   refresh,
 }: {
   family: Family;
+  members: FamilyMember[];
   theme: ThemeColors;
   setFamily: (f: Family) => void;
   refresh: () => void;
 }) {
+  const router = useRouter();
   const [name, setName] = useState(family.name);
   const [budgetStr, setBudgetStr] = useState(
     family.budget_cents ? String(fromCents(family.budget_cents)) : '',
@@ -475,6 +527,28 @@ function OwnerSettings({
         )}
       </Card>
 
+      <Pressable onPress={() => router.push('/(app)/recurring-costs' as Href)}>
+        <Card style={styles.section}>
+          <View style={styles.settingsLinkRow}>
+            <Text style={[styles.sectionTitle, { marginBottom: 0, color: theme.textSecondary }]}>
+              Fixed costs
+            </Text>
+            <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+          </View>
+          <Text style={[styles.hintMuted, { color: theme.textSecondary }]}>
+            Manage recurring items that appear each period
+          </Text>
+        </Card>
+      </Pressable>
+
+      <HouseholdBudgetsCard family={family} theme={theme} refresh={refresh} />
+      <IncomeSplitCard
+        members={members}
+        currency={family.currency}
+        theme={theme}
+        refresh={refresh}
+      />
+
       {dirty && <Button title="Save Changes" onPress={handleSave} loading={saving} />}
     </>
   );
@@ -602,6 +676,13 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   bannerText: { fontSize: 14, textAlign: 'center', fontWeight: '500' },
+
+  settingsLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  hintMuted: { fontSize: 14, marginTop: 4 },
 
   readOnlyRow: {
     flexDirection: 'row',

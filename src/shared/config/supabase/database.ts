@@ -33,6 +33,66 @@ export type Database = {
         };
         Relationships: [];
       };
+      categories: {
+        Row: {
+          id: string;
+          family_id: string | null;
+          name: string;
+          icon: string;
+          color: string;
+          sort_order: number;
+          is_system: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          family_id?: string | null;
+          name: string;
+          icon?: string;
+          color?: string;
+          sort_order?: number;
+          is_system?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          family_id?: string | null;
+          name?: string;
+          icon?: string;
+          color?: string;
+          sort_order?: number;
+          is_system?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      category_budgets: {
+        Row: {
+          id: string;
+          family_id: string;
+          category_id: string;
+          amount_cents: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          family_id: string;
+          category_id: string;
+          amount_cents: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          family_id?: string;
+          category_id?: string;
+          amount_cents?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       families: {
         Row: {
           id: string;
@@ -79,6 +139,7 @@ export type Database = {
           user_id: string;
           role: string;
           joined_at: string;
+          income_cents: number | null;
         };
         Insert: {
           id?: string;
@@ -86,6 +147,7 @@ export type Database = {
           user_id: string;
           role?: string;
           joined_at?: string;
+          income_cents?: number | null;
         };
         Update: {
           id?: string;
@@ -93,6 +155,7 @@ export type Database = {
           user_id?: string;
           role?: string;
           joined_at?: string;
+          income_cents?: number | null;
         };
         Relationships: [];
       };
@@ -168,6 +231,69 @@ export type Database = {
         };
         Relationships: [];
       };
+      goal_contributions: {
+        Row: {
+          id: string;
+          goal_id: string;
+          user_id: string;
+          amount_cents: number;
+          note: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          goal_id: string;
+          user_id: string;
+          amount_cents: number;
+          note?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          goal_id?: string;
+          user_id?: string;
+          amount_cents?: number;
+          note?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      goals: {
+        Row: {
+          id: string;
+          family_id: string;
+          name: string;
+          target_cents: number;
+          icon: string;
+          color: string;
+          created_by: string;
+          created_at: string;
+          completed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          family_id: string;
+          name: string;
+          target_cents: number;
+          icon?: string;
+          color?: string;
+          created_by: string;
+          created_at?: string;
+          completed_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          family_id?: string;
+          name?: string;
+          target_cents?: number;
+          icon?: string;
+          color?: string;
+          created_by?: string;
+          created_at?: string;
+          completed_at?: string | null;
+        };
+        Relationships: [];
+      };
       push_tokens: {
         Row: {
           user_id: string;
@@ -195,6 +321,9 @@ export type Database = {
           amount_cents: number;
           description: string;
           receipt_url: string | null;
+          category_id: string | null;
+          is_recurring: boolean;
+          recurring_cost_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -206,6 +335,9 @@ export type Database = {
           amount_cents: number;
           description: string;
           receipt_url?: string | null;
+          category_id?: string | null;
+          is_recurring?: boolean;
+          recurring_cost_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -217,6 +349,45 @@ export type Database = {
           amount_cents?: number;
           description?: string | null;
           receipt_url?: string | null;
+          category_id?: string | null;
+          is_recurring?: boolean;
+          recurring_cost_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      recurring_costs: {
+        Row: {
+          id: string;
+          family_id: string;
+          category_id: string | null;
+          description: string;
+          amount_cents: number;
+          default_payer_id: string | null;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          family_id: string;
+          category_id?: string | null;
+          description: string;
+          amount_cents: number;
+          default_payer_id?: string | null;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          family_id?: string;
+          category_id?: string | null;
+          description?: string;
+          amount_cents?: number;
+          default_payer_id?: string | null;
+          is_active?: boolean;
           created_at?: string;
           updated_at?: string;
         };

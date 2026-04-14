@@ -2,6 +2,9 @@ import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text, View, useColorScheme, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CategoryBreakdownWidget } from '@widgets/category-breakdown';
+import { getCategories } from '@entities/category';
+import { getCategoryBudgets } from '@entities/category-budget';
 import { useFamilyStore, type FamilyMember } from '@entities/family';
 import {
   countArchivedUnsettledPeriods,
@@ -42,16 +45,35 @@ export default function PeriodReportScreen() {
   const members = useFamilyStore((s) => s.members);
   const { user } = useAuth();
   const { family } = useAppGateContext();
+  const currency = family?.currency ?? 'SEK';
   const setUnsettledCount = useLedgerTabBadgeStore((s) => s.setUnsettledArchivedCount);
 
   const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [reportCategories, setReportCategories] = useState<
+    Awaited<ReturnType<typeof getCategories>>
+  >([]);
+  const [reportBudgets, setReportBudgets] = useState<
+    Awaited<ReturnType<typeof getCategoryBudgets>>
+  >([]);
   const [resolving, setResolving] = useState(false);
   const [status, setStatus] = useState(initialStatus ?? 'archived');
 
   useEffect(() => {
-    if (!periodId) return;
-    getPurchases(periodId).then(setPurchases).catch(console.warn);
-  }, [periodId]);
+    if (!periodId || !family?.id) return;
+    let cancelled = false;
+    Promise.all([getPurchases(periodId), getCategories(family.id), getCategoryBudgets(family.id)])
+      .then(([p, c, b]) => {
+        if (!cancelled) {
+          setPurchases(p);
+          setReportCategories(c);
+          setReportBudgets(b);
+        }
+      })
+      .catch(console.warn);
+    return () => {
+      cancelled = true;
+    };
+  }, [periodId, family?.id]);
 
   const totalSpent = purchases.reduce((sum, p) => sum + p.amount_cents, 0);
 
@@ -61,6 +83,7 @@ export default function PeriodReportScreen() {
     totalCents: purchases
       .filter((p) => p.user_id === m.user_id)
       .reduce((sum, p) => sum + p.amount_cents, 0),
+    incomeCents: m.income_cents,
   }));
 
   const settlements = calculateSettlements(spendByUser);
@@ -136,8 +159,32 @@ export default function PeriodReportScreen() {
 
       <Card style={styles.section}>
         <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Total spent</Text>
-        <Text style={[styles.totalAmount, { color: theme.text }]}>{formatMoney(totalSpent)}</Text>
+        <Text style={[styles.totalAmount, { color: theme.text }]}>
+          {formatMoney(totalSpent, currency)}
+        </Text>
+        {family?.budget_cents != null ? (
+          <View style={[styles.totalBudgetTrack, { backgroundColor: theme.backgroundSelected }]}>
+            <View
+              style={[
+                styles.totalBudgetFill,
+                {
+                  width: `${Math.min((totalSpent / family.budget_cents) * 100, 100)}%`,
+                  backgroundColor: totalSpent > family.budget_cents ? '#FF3B30' : theme.accent,
+                },
+              ]}
+            />
+          </View>
+        ) : null}
       </Card>
+
+      {reportCategories.length > 0 ? (
+        <CategoryBreakdownWidget
+          purchases={purchases}
+          categories={reportCategories}
+          categoryBudgets={reportBudgets}
+          currency={currency}
+        />
+      ) : null}
 
       <Card style={styles.section}>
         <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Per member</Text>
@@ -145,7 +192,7 @@ export default function PeriodReportScreen() {
           <View key={entry.userId} style={styles.memberRow}>
             <Text style={[styles.memberName, { color: theme.text }]}>{entry.name}</Text>
             <Text style={[styles.memberAmount, { color: theme.textSecondary }]}>
-              {formatMoney(entry.totalCents)}
+              {formatMoney(entry.totalCents, currency)}
             </Text>
           </View>
         ))}
@@ -160,7 +207,7 @@ export default function PeriodReportScreen() {
                 {s.from.name} owes {s.to.name}
               </Text>
               <Text style={[styles.settlementAmount, { color: theme.accent }]}>
-                {formatMoney(s.amountCents)}
+                {formatMoney(s.amountCents, currency)}
               </Text>
             </View>
           ))}
@@ -182,7 +229,7 @@ export default function PeriodReportScreen() {
               </Text>
             </View>
             <Text style={[styles.purchaseAmount, { color: theme.text }]}>
-              {formatMoney(p.amount_cents)}
+              {formatMoney(p.amount_cents, currency)}
             </Text>
           </View>
         ))}
@@ -235,6 +282,8 @@ const styles = StyleSheet.create({
   section: { marginHorizontal: Spacing.lg, marginBottom: Spacing.md },
   sectionLabel: { fontSize: 13, fontWeight: '500', textTransform: 'uppercase', marginBottom: 8 },
   totalAmount: { fontSize: 32, fontWeight: '700', letterSpacing: -1 },
+  totalBudgetTrack: { height: 8, borderRadius: 4, marginTop: 12, overflow: 'hidden' },
+  totalBudgetFill: { height: '100%', borderRadius: 4 },
   memberRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
   memberName: { fontSize: 16 },
   memberAmount: { fontSize: 16, fontWeight: '500' },

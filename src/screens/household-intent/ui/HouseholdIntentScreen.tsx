@@ -24,6 +24,11 @@ export default function HouseholdIntentScreen() {
     refresh();
   }, [refresh]);
 
+  const chooseSignIn = useCallback(async () => {
+    await saveHouseholdIntent('sign_in');
+    refresh();
+  }, [refresh]);
+
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
       <ScreenContent scrollable padded style={{ paddingTop: insets.top + Spacing.lg }}>
@@ -33,11 +38,17 @@ export default function HouseholdIntentScreen() {
           </View>
           <Text style={[styles.title, { color: theme.text }]}>How will you use FiftyFifty?</Text>
           <Text style={[styles.lede, { color: theme.textSecondary }]}>
-            One subscription covers your household. Choose the path that fits you.
+            New here or coming back—pick the option that fits you.
           </Text>
         </View>
 
         <View style={styles.cards}>
+          <HouseholdPathCard
+            icon="log-in-outline"
+            title="Sign in to my household"
+            subtitle="You already have an account and a family—open the app where you left off."
+            onPress={chooseSignIn}
+          />
           <HouseholdPathCard
             icon="add-circle-outline"
             title="Start a household"

@@ -236,6 +236,7 @@ export type Database = {
           id: string;
           goal_id: string;
           user_id: string;
+          period_id: string | null;
           amount_cents: number;
           note: string | null;
           created_at: string;
@@ -244,6 +245,7 @@ export type Database = {
           id?: string;
           goal_id: string;
           user_id: string;
+          period_id: string;
           amount_cents: number;
           note?: string | null;
           created_at?: string;
@@ -252,6 +254,7 @@ export type Database = {
           id?: string;
           goal_id?: string;
           user_id?: string;
+          period_id?: string | null;
           amount_cents?: number;
           note?: string | null;
           created_at?: string;
@@ -394,7 +397,18 @@ export type Database = {
         Relationships: [];
       };
     };
-    Views: Record<string, never>;
+    Views: {
+      period_totals: {
+        Row: {
+          period_id: string;
+          family_id: string;
+          purchase_cents: number;
+          goal_cents: number;
+          total_cents: number;
+        };
+        Relationships: [];
+      };
+    };
     Functions: {
       redeem_family_invite: {
         Args: { p_code: string };

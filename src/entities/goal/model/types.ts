@@ -18,5 +18,7 @@ export type GoalContribution = {
   amount_cents: number;
   note: string | null;
   created_at: string;
+  /** Household period this contribution counts toward (ledger + settlement). */
+  period_id: string | null;
   profile?: { full_name: string | null };
 };

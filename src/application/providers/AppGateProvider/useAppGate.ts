@@ -336,6 +336,10 @@ function computeTarget(state: {
 
   if (!welcomed) return '/(auth)/welcome';
 
+  if (!user && welcomed && householdIntent === 'sign_in' && !pendingInvite) {
+    return '/(auth)/login';
+  }
+
   if (!user && welcomed && householdIntent === null && !pendingInvite) {
     return '/(auth)/household-intent';
   }

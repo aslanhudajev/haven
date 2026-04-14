@@ -19,8 +19,12 @@ export async function getGoalContributions(goalId: string): Promise<GoalContribu
 
   const profileMap = new Map((profiles ?? []).map((p) => [p.id, { full_name: p.full_name }]));
 
-  return rows.map((r) => ({
-    ...r,
-    profile: profileMap.get(r.user_id) ?? null,
-  })) as GoalContribution[];
+  return rows.map((r) => {
+    const row = r as Record<string, unknown>;
+    return {
+      ...r,
+      period_id: (row.period_id as string | null | undefined) ?? null,
+      profile: profileMap.get(r.user_id) ?? null,
+    } as GoalContribution;
+  });
 }

@@ -22,6 +22,7 @@ import {
   type Goal,
   type GoalContribution,
 } from '@entities/goal';
+import { usePeriodStore } from '@entities/period';
 import { getErrorMessage } from '@shared/lib/errors';
 import { formatMoney, toCents } from '@shared/lib/format';
 import { Colors, Spacing } from '@shared/lib/theme';
@@ -34,6 +35,7 @@ export default function GoalDetailScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { family, isOwner } = useAppGateContext();
+  const activePeriod = usePeriodStore((s) => s.activePeriod);
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
   const insets = useSafeAreaInsets();
@@ -77,6 +79,13 @@ export default function GoalDetailScreen() {
 
   const handleAddContribution = async () => {
     if (!user || !goal || goal.completed_at) return;
+    if (!activePeriod) {
+      Alert.alert(
+        'No active period',
+        'Contributions are tied to your household’s current period. Try again when a period is active.',
+      );
+      return;
+    }
     const n = parseFloat(amountStr);
     if (isNaN(n) || n <= 0) {
       Alert.alert('Amount', 'Enter a positive amount.');
@@ -87,6 +96,7 @@ export default function GoalDetailScreen() {
       await addGoalContribution({
         goalId: goal.id,
         userId: user.id,
+        periodId: activePeriod.id,
         amountCents: toCents(n),
         note: note.trim() || null,
       });

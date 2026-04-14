@@ -11,3 +11,4 @@ export { ensureActivePeriodForDashboard } from './libs/ensureActivePeriodForDash
 export { createPeriod } from './libs/createPeriod';
 export { archivePeriod } from './libs/archivePeriod';
 export { resolvePeriod } from './libs/resolvePeriod';
+export { getPeriodTotals, type PeriodTotal } from './libs/getPeriodTotals';

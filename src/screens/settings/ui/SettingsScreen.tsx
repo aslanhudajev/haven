@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { deleteAccount, logout } from '@entities/auth';
@@ -241,6 +241,18 @@ export default function SettingsScreen() {
             <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Family</Text>
             <Text style={[styles.value, { color: theme.text }]}>{family.name}</Text>
             <Text style={[styles.hint, { color: theme.accent }]}>Manage →</Text>
+          </Card>
+        </Pressable>
+      )}
+
+      {family && (
+        <Pressable onPress={() => router.push('/(app)/goals' as Href)}>
+          <Card style={styles.section}>
+            <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Goals</Text>
+            <Text style={[styles.value, { color: theme.text }]}>
+              Shared savings targets for your household
+            </Text>
+            <Text style={[styles.hint, { color: theme.accent }]}>Open →</Text>
           </Card>
         </Pressable>
       )}

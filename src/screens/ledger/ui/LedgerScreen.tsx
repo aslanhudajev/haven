@@ -1,5 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -15,10 +15,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   countArchivedUnsettledPeriods,
   getLedgerPeriods,
+  getPeriodTotals,
   type Period,
   useLedgerTabBadgeStore,
 } from '@entities/period';
-import { getPurchases } from '@entities/purchase';
 import { formatDateRange, formatMoney } from '@shared/lib/format';
 import { Colors, Spacing } from '@shared/lib/theme';
 import { Card } from '@shared/ui';
@@ -54,13 +54,11 @@ export default function LedgerScreen() {
     try {
       const ledger = await getLedgerPeriods(family.id);
       setUnsettledCount(countArchivedUnsettledPeriods(ledger));
-      const withTotals = await Promise.all(
-        ledger.map(async (p) => {
-          const purchases = await getPurchases(p.id);
-          const totalCents = purchases.reduce((sum, pur) => sum + pur.amount_cents, 0);
-          return { ...p, totalCents };
-        }),
-      );
+      const totalsMap = await getPeriodTotals(ledger.map((p) => p.id));
+      const withTotals = ledger.map((p) => ({
+        ...p,
+        totalCents: totalsMap.get(p.id)?.total_cents ?? 0,
+      }));
       setPeriods(withTotals);
     } catch (err) {
       console.warn('Ledger load error:', err);
@@ -129,7 +127,7 @@ export default function LedgerScreen() {
                 key={p.id}
                 onPress={() =>
                   router.push({
-                    pathname: '/(app)/period-report',
+                    pathname: '/(app)/period-ledger',
                     params: {
                       periodId: p.id,
                       periodName: p.name,
@@ -137,7 +135,7 @@ export default function LedgerScreen() {
                       endsAt: p.ends_at,
                       status: p.status,
                     },
-                  })
+                  } as unknown as Href)
                 }
               >
                 <Card style={styles.periodCard}>
@@ -170,7 +168,7 @@ export default function LedgerScreen() {
                   </View>
                   <View style={styles.periodBottom}>
                     <Text style={[styles.totalLabel, { color: theme.textSecondary }]}>
-                      Total spent
+                      In period
                     </Text>
                     <Text style={[styles.totalAmount, { color: theme.text }]}>
                       {formatMoney(p.totalCents)}

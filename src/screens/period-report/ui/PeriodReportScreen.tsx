@@ -1,11 +1,12 @@
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, View, useColorScheme, ScrollView } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CategoryBreakdownWidget } from '@widgets/category-breakdown';
 import { getCategories } from '@entities/category';
 import { getCategoryBudgets } from '@entities/category-budget';
 import { useFamilyStore, type FamilyMember } from '@entities/family';
+import { getGoalContributionsForPeriod } from '@entities/goal';
 import {
   countArchivedUnsettledPeriods,
   getLedgerPeriods,
@@ -26,6 +27,7 @@ import { useAppGateContext } from '@app/providers/AppGateProvider';
 import { useAuth } from '@app/providers/AuthProvider';
 
 export default function PeriodReportScreen() {
+  const router = useRouter();
   const {
     periodId,
     periodName,
@@ -49,6 +51,7 @@ export default function PeriodReportScreen() {
   const setUnsettledCount = useLedgerTabBadgeStore((s) => s.setUnsettledArchivedCount);
 
   const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [goalContribTotalByUser, setGoalContribTotalByUser] = useState<Record<string, number>>({});
   const [reportCategories, setReportCategories] = useState<
     Awaited<ReturnType<typeof getCategories>>
   >([]);
@@ -61,12 +64,22 @@ export default function PeriodReportScreen() {
   useEffect(() => {
     if (!periodId || !family?.id) return;
     let cancelled = false;
-    Promise.all([getPurchases(periodId), getCategories(family.id), getCategoryBudgets(family.id)])
-      .then(([p, c, b]) => {
+    Promise.all([
+      getPurchases(periodId),
+      getCategories(family.id),
+      getCategoryBudgets(family.id),
+      getGoalContributionsForPeriod(periodId),
+    ])
+      .then(([p, c, b, gc]) => {
         if (!cancelled) {
           setPurchases(p);
           setReportCategories(c);
           setReportBudgets(b);
+          const byUser: Record<string, number> = {};
+          gc.forEach((row) => {
+            byUser[row.user_id] = (byUser[row.user_id] ?? 0) + row.amount_cents;
+          });
+          setGoalContribTotalByUser(byUser);
         }
       })
       .catch(console.warn);
@@ -75,14 +88,16 @@ export default function PeriodReportScreen() {
     };
   }, [periodId, family?.id]);
 
-  const totalSpent = purchases.reduce((sum, p) => sum + p.amount_cents, 0);
+  const purchaseTotal = purchases.reduce((sum, p) => sum + p.amount_cents, 0);
+  const goalContribTotal = Object.values(goalContribTotalByUser).reduce((s, n) => s + n, 0);
+  const totalSpent = purchaseTotal + goalContribTotal;
 
   const spendByUser = members.map((m: FamilyMember) => ({
     userId: m.user_id,
     name: m.profile?.full_name || 'Anonymous',
-    totalCents: purchases
-      .filter((p) => p.user_id === m.user_id)
-      .reduce((sum, p) => sum + p.amount_cents, 0),
+    totalCents:
+      purchases.filter((p) => p.user_id === m.user_id).reduce((sum, p) => sum + p.amount_cents, 0) +
+      (goalContribTotalByUser[m.user_id] ?? 0),
     incomeCents: m.income_cents,
   }));
 
@@ -155,21 +170,53 @@ export default function PeriodReportScreen() {
             {formatDateRange(startsAt, endsAt)}
           </Text>
         )}
+        <Pressable
+          onPress={() => {
+            if (!periodId || !periodName || !startsAt || !endsAt) return;
+            router.push({
+              pathname: '/(app)/period-ledger',
+              params: {
+                periodId,
+                periodName,
+                startsAt,
+                endsAt,
+                status,
+              },
+            } as unknown as Href);
+          }}
+          style={({ pressed }) => [styles.ledgerLink, pressed && { opacity: 0.7 }]}
+        >
+          <Text style={[styles.ledgerLinkText, { color: theme.accent }]}>
+            Open chronological ledger →
+          </Text>
+        </Pressable>
       </View>
 
       <Card style={styles.section}>
-        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Total spent</Text>
+        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
+          Total toward settlement
+        </Text>
         <Text style={[styles.totalAmount, { color: theme.text }]}>
           {formatMoney(totalSpent, currency)}
         </Text>
+        <View style={styles.totalBreakdown}>
+          <Text style={[styles.totalBreakdownLine, { color: theme.textSecondary }]}>
+            Purchases: {formatMoney(purchaseTotal, currency)}
+          </Text>
+          {goalContribTotal > 0 ? (
+            <Text style={[styles.totalBreakdownLine, { color: theme.textSecondary }]}>
+              Goal contributions: {formatMoney(goalContribTotal, currency)}
+            </Text>
+          ) : null}
+        </View>
         {family?.budget_cents != null ? (
           <View style={[styles.totalBudgetTrack, { backgroundColor: theme.backgroundSelected }]}>
             <View
               style={[
                 styles.totalBudgetFill,
                 {
-                  width: `${Math.min((totalSpent / family.budget_cents) * 100, 100)}%`,
-                  backgroundColor: totalSpent > family.budget_cents ? '#FF3B30' : theme.accent,
+                  width: `${Math.min((purchaseTotal / family.budget_cents) * 100, 100)}%`,
+                  backgroundColor: purchaseTotal > family.budget_cents ? '#FF3B30' : theme.accent,
                 },
               ]}
             />
@@ -214,27 +261,6 @@ export default function PeriodReportScreen() {
         </Card>
       )}
 
-      <Card style={styles.section}>
-        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-          Purchases ({purchases.length})
-        </Text>
-        {purchases.map((p) => (
-          <View key={p.id} style={styles.purchaseRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.purchaseDesc, { color: theme.text }]}>
-                {p.description || 'No description'}
-              </Text>
-              <Text style={[styles.purchaseBy, { color: theme.textSecondary }]}>
-                {p.profile?.full_name || 'Anonymous'}
-              </Text>
-            </View>
-            <Text style={[styles.purchaseAmount, { color: theme.text }]}>
-              {formatMoney(p.amount_cents, currency)}
-            </Text>
-          </View>
-        ))}
-      </Card>
-
       {isActive && (
         <View style={[styles.resolveAction, styles.pendingEndHint]}>
           <Text style={[styles.pendingEndText, { color: theme.textSecondary }]}>
@@ -266,6 +292,8 @@ const styles = StyleSheet.create({
   headerTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   title: { fontSize: 28, fontWeight: '700', letterSpacing: -0.5 },
   range: { fontSize: 15, marginTop: 4 },
+  ledgerLink: { alignSelf: 'flex-start', marginTop: 12 },
+  ledgerLinkText: { fontSize: 15, fontWeight: '600' },
   resolvedBadge: {
     backgroundColor: '#34C75920',
     paddingHorizontal: 10,
@@ -284,16 +312,14 @@ const styles = StyleSheet.create({
   totalAmount: { fontSize: 32, fontWeight: '700', letterSpacing: -1 },
   totalBudgetTrack: { height: 8, borderRadius: 4, marginTop: 12, overflow: 'hidden' },
   totalBudgetFill: { height: '100%', borderRadius: 4 },
+  totalBreakdown: { marginTop: 10, gap: 2 },
+  totalBreakdownLine: { fontSize: 14, fontWeight: '500' },
   memberRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
   memberName: { fontSize: 16 },
   memberAmount: { fontSize: 16, fontWeight: '500' },
   settlementRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
   settlementText: { fontSize: 16 },
   settlementAmount: { fontSize: 16, fontWeight: '600' },
-  purchaseRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
-  purchaseDesc: { fontSize: 15 },
-  purchaseBy: { fontSize: 13, marginTop: 2 },
-  purchaseAmount: { fontSize: 15, fontWeight: '600' },
   resolveAction: { marginHorizontal: Spacing.lg, marginTop: Spacing.md },
   pendingEndHint: { marginTop: Spacing.sm },
   pendingEndText: { fontSize: 15, lineHeight: 22, textAlign: 'center' },

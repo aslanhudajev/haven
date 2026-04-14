@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, type Href } from 'expo-router';
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   Platform,
@@ -53,11 +53,15 @@ export default function FamilySettingsScreen() {
   const members = useFamilyStore((s) => s.members);
   const setMembers = useFamilyStore((s) => s.setMembers);
 
-  useEffect(() => {
+  const refreshMembers = useCallback(() => {
     if (gateFamily?.id) {
       getMembers(gateFamily.id).then(setMembers).catch(console.warn);
     }
   }, [gateFamily?.id]);
+
+  useEffect(() => {
+    refreshMembers();
+  }, [refreshMembers]);
 
   if (!gateFamily) {
     return (
@@ -90,6 +94,7 @@ export default function FamilySettingsScreen() {
             theme={theme}
             setFamily={setFamily}
             refresh={refresh}
+            refreshMembers={refreshMembers}
           />
         ) : (
           <MemberReadOnly
@@ -97,7 +102,7 @@ export default function FamilySettingsScreen() {
             theme={theme}
             members={members}
             user={user}
-            refresh={refresh}
+            refreshMembers={refreshMembers}
           />
         )}
       </ScrollView>
@@ -273,13 +278,13 @@ function MemberReadOnly({
   theme,
   members,
   user,
-  refresh,
+  refreshMembers,
 }: {
   family: Family;
   theme: ThemeColors;
   members: FamilyMember[];
   user: { id: string } | null;
-  refresh: () => void;
+  refreshMembers: () => void;
 }) {
   const router = useRouter();
   const cadenceLabel =
@@ -318,7 +323,7 @@ function MemberReadOnly({
         member={selfMember}
         currency={family.currency}
         theme={theme}
-        refresh={refresh}
+        refresh={refreshMembers}
       />
 
       <Card style={styles.section}>
@@ -363,12 +368,14 @@ function OwnerSettings({
   theme,
   setFamily,
   refresh,
+  refreshMembers,
 }: {
   family: Family;
   members: FamilyMember[];
   theme: ThemeColors;
   setFamily: (f: Family) => void;
   refresh: () => void;
+  refreshMembers: () => void;
 }) {
   const router = useRouter();
   const [name, setName] = useState(family.name);
@@ -546,7 +553,7 @@ function OwnerSettings({
         members={members}
         currency={family.currency}
         theme={theme}
-        refresh={refresh}
+        refresh={refreshMembers}
       />
 
       {dirty && <Button title="Save Changes" onPress={handleSave} loading={saving} />}

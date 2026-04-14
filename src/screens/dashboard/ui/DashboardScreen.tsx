@@ -1,8 +1,8 @@
-import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter, type Href } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -15,23 +15,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BalanceCardWidget } from '@widgets/balance-card';
 import { BudgetProgressWidget } from '@widgets/budget-progress';
 import { GoalsSummaryWidget } from '@widgets/goals-summary';
-import { PurchaseListWidget } from '@widgets/purchase-list';
 import { getCategories, useCategoryStore } from '@entities/category';
 import { getCategoryBudgets, useCategoryBudgetStore } from '@entities/category-budget';
 import { useFamilyStore, getFamily, getMembers } from '@entities/family';
-import { getGoals, useGoalStore } from '@entities/goal';
+import { getGoalContributionsForPeriod, getGoals, useGoalStore } from '@entities/goal';
 import { usePeriodStore, ensureActivePeriodForDashboard } from '@entities/period';
-import {
-  claimRecurringPurchase,
-  deletePurchase,
-  getPurchases,
-  usePurchaseStore,
-} from '@entities/purchase';
+import { getPurchases, usePurchaseStore } from '@entities/purchase';
 import { runSerialized } from '@shared/lib/async';
 import { periodLog } from '@shared/lib/debug';
-import { getErrorMessage } from '@shared/lib/errors';
 import { formatDateRange } from '@shared/lib/format';
 import { Colors, Spacing } from '@shared/lib/theme';
+import { Card } from '@shared/ui';
 import { useAppGateContext } from '@app/providers/AppGateProvider';
 import { useAuth } from '@app/providers/AuthProvider';
 
@@ -52,8 +46,6 @@ export default function DashboardScreen() {
 
   const purchases = usePurchaseStore((s) => s.purchases);
   const setPurchases = usePurchaseStore((s) => s.setPurchases);
-  const removePurchase = usePurchaseStore((s) => s.removePurchase);
-  const updatePurchaseInList = usePurchaseStore((s) => s.updatePurchaseInList);
 
   const setCategories = useCategoryStore((s) => s.setCategories);
   const categories = useCategoryStore((s) => s.categories);
@@ -64,6 +56,7 @@ export default function DashboardScreen() {
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [goalSpendByUser, setGoalSpendByUser] = useState<Record<string, number>>({});
 
   const family = gate.family;
 
@@ -94,17 +87,25 @@ export default function DashboardScreen() {
         setActivePeriod(currentPeriod);
 
         if (currentPeriod) {
-          const [p, cats, budgets, goalList] = await Promise.all([
+          const [p, cats, budgets, goalList, goalContribs] = await Promise.all([
             getPurchases(currentPeriod.id),
             getCategories(family.id),
             getCategoryBudgets(family.id),
             getGoals(family.id),
+            getGoalContributionsForPeriod(currentPeriod.id),
           ]);
           if (cancelled) return;
           setPurchases(p);
           setCategories(cats);
           setCategoryBudgets(budgets);
           setGoals(goalList);
+          const byUser: Record<string, number> = {};
+          goalContribs.forEach((c) => {
+            byUser[c.user_id] = (byUser[c.user_id] ?? 0) + c.amount_cents;
+          });
+          setGoalSpendByUser(byUser);
+        } else {
+          setGoalSpendByUser({});
         }
       } catch (err) {
         console.warn('Dashboard load error:', err);
@@ -119,9 +120,13 @@ export default function DashboardScreen() {
   }, [user?.id, family?.id]);
 
   const onRefresh = useCallback(async () => {
+    if (!user) {
+      setRefreshing(false);
+      return;
+    }
     setRefreshing(true);
     try {
-      const fam = await getFamily(user!.id);
+      const fam = await getFamily(user.id);
       setFamily(fam);
       if (fam) {
         const mems = await getMembers(fam.id);
@@ -135,16 +140,24 @@ export default function DashboardScreen() {
         );
         setActivePeriod(period);
         if (period) {
-          const [p, cats, budgets, goalList] = await Promise.all([
+          const [p, cats, budgets, goalList, goalContribs] = await Promise.all([
             getPurchases(period.id),
             getCategories(fam.id),
             getCategoryBudgets(fam.id),
             getGoals(fam.id),
+            getGoalContributionsForPeriod(period.id),
           ]);
           setPurchases(p);
           setCategories(cats);
           setCategoryBudgets(budgets);
           setGoals(goalList);
+          const byUser: Record<string, number> = {};
+          goalContribs.forEach((c) => {
+            byUser[c.user_id] = (byUser[c.user_id] ?? 0) + c.amount_cents;
+          });
+          setGoalSpendByUser(byUser);
+        } else {
+          setGoalSpendByUser({});
         }
       }
     } catch (err) {
@@ -152,7 +165,15 @@ export default function DashboardScreen() {
     } finally {
       setRefreshing(false);
     }
-  }, [user]);
+  }, [user?.id]);
+
+  if (!user) {
+    return (
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.accent} />
+      </View>
+    );
+  }
 
   if (loading) {
     return (
@@ -205,6 +226,7 @@ export default function DashboardScreen() {
 
         <BalanceCardWidget
           purchases={purchases}
+          goalSpendByUser={goalSpendByUser}
           members={members}
           budgetCents={family.budget_cents}
           currency={family.currency}
@@ -219,38 +241,44 @@ export default function DashboardScreen() {
 
         <GoalsSummaryWidget goals={goals} />
 
-        <View style={styles.listHeader}>
-          <Text style={[styles.listTitle, { color: theme.text }]}>Purchases</Text>
-        </View>
-
-        <PurchaseListWidget
-          currentUserId={user!.id}
-          currency={family.currency}
-          categories={categories}
-          onPressPurchase={(p) =>
-            router.push({
-              pathname: '/(app)/edit-purchase',
-              params: { purchaseId: p.id },
-            })
-          }
-          onDeletePurchase={async (p) => {
-            try {
-              await deletePurchase(p.id);
-              removePurchase(p.id);
-            } catch (err: unknown) {
-              Alert.alert('Error', getErrorMessage(err, 'Could not delete purchase'));
+        {activePeriod ? (
+          <Pressable
+            onPress={() =>
+              router.push({
+                pathname: '/(app)/period-ledger',
+                params: {
+                  periodId: activePeriod.id,
+                  periodName: activePeriod.name,
+                  startsAt: activePeriod.starts_at,
+                  endsAt: activePeriod.ends_at,
+                  status: activePeriod.status,
+                },
+              } as unknown as Href)
             }
-          }}
-          onClaimRecurring={async (p) => {
-            if (!user) return;
-            try {
-              await claimRecurringPurchase(p.id, user.id);
-              updatePurchaseInList({ ...p, user_id: user.id });
-            } catch (err: unknown) {
-              Alert.alert('Error', getErrorMessage(err, 'Could not update purchase'));
-            }
-          }}
-        />
+            style={({ pressed }) => [pressed && { opacity: 0.85 }]}
+          >
+            <Card
+              style={StyleSheet.flatten([
+                styles.ledgerHint,
+                { backgroundColor: theme.backgroundElement, borderColor: theme.backgroundSelected },
+              ])}
+            >
+              <View style={styles.ledgerHintRow}>
+                <Ionicons name="receipt-outline" size={22} color={theme.accent} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.ledgerHintTitle, { color: theme.text }]}>
+                    Period activity & ledger
+                  </Text>
+                  <Text style={[styles.ledgerHintSub, { color: theme.textSecondary }]}>
+                    Tap for every purchase and goal contribution in order. Older periods: Ledger
+                    tab.
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+              </View>
+            </Card>
+          </Pressable>
+        ) : null}
       </ScrollView>
 
       <Pressable
@@ -280,8 +308,17 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: Spacing.lg, marginBottom: Spacing.lg },
   familyName: { fontSize: 28, fontWeight: '700', letterSpacing: -0.5 },
   periodRange: { fontSize: 15, marginTop: 4 },
-  listHeader: { paddingHorizontal: Spacing.lg, marginTop: Spacing.md, marginBottom: Spacing.sm },
-  listTitle: { fontSize: 20, fontWeight: '600' },
+  ledgerHint: {
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.md,
+    padding: Spacing.md,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  ledgerHintRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  ledgerHintTitle: { fontSize: 16, fontWeight: '600' },
+  ledgerHintSub: { fontSize: 14, marginTop: 4, lineHeight: 20 },
   fab: {
     position: 'absolute',
     right: 24,

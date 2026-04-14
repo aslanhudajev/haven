@@ -5,8 +5,8 @@ export const APP_STORAGE_WELCOMED_KEY = 'fiftyfifty:welcomed';
 export const APP_STORAGE_PENDING_INVITE_KEY = 'fiftyfifty:pending_invite';
 export const APP_STORAGE_HOUSEHOLD_INTENT_KEY = 'fiftyfifty:household_intent';
 
-/** Post-welcome path: payer creates household vs member joins via invite. */
-export type HouseholdIntent = 'create' | 'join';
+/** Post-welcome path: create, join, or sign in when you already have an account + household. */
+export type HouseholdIntent = 'create' | 'join' | 'sign_in';
 
 const LEGACY_WELCOMED = 'haven:welcomed';
 const LEGACY_PENDING_INVITE = 'haven:pending_invite';
@@ -45,7 +45,7 @@ export async function loadPendingInviteCode(): Promise<string | null> {
 
 export async function loadHouseholdIntent(): Promise<HouseholdIntent | null> {
   const v = await AsyncStorage.getItem(APP_STORAGE_HOUSEHOLD_INTENT_KEY);
-  if (v === 'create' || v === 'join') return v;
+  if (v === 'create' || v === 'join' || v === 'sign_in') return v;
   return null;
 }
 

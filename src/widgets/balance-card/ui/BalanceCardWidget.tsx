@@ -7,23 +7,33 @@ import { Colors, Spacing } from '@shared/lib/theme';
 
 type Props = {
   purchases: Purchase[];
+  /** Goal contributions in the active period, by user (counts toward settlement). */
+  goalSpendByUser?: Record<string, number>;
   members: FamilyMember[];
   budgetCents: number | null;
   currency?: string;
 };
 
-export function BalanceCardWidget({ purchases, members, budgetCents, currency = 'SEK' }: Props) {
+export function BalanceCardWidget({
+  purchases,
+  goalSpendByUser = {},
+  members,
+  budgetCents,
+  currency = 'SEK',
+}: Props) {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
 
-  const totalSpent = purchases.reduce((sum, p) => sum + p.amount_cents, 0);
+  const purchaseTotal = purchases.reduce((sum, p) => sum + p.amount_cents, 0);
+  const goalTotal = Object.values(goalSpendByUser).reduce((s, n) => s + n, 0);
+  const totalSpent = purchaseTotal + goalTotal;
 
   const spendByUser = members.map((m) => ({
     userId: m.user_id,
     name: m.profile?.full_name || 'Anonymous',
-    totalCents: purchases
-      .filter((p) => p.user_id === m.user_id)
-      .reduce((sum, p) => sum + p.amount_cents, 0),
+    totalCents:
+      purchases.filter((p) => p.user_id === m.user_id).reduce((sum, p) => sum + p.amount_cents, 0) +
+      (goalSpendByUser[m.user_id] ?? 0),
     incomeCents: m.income_cents,
   }));
 
@@ -44,10 +54,16 @@ export function BalanceCardWidget({ purchases, members, budgetCents, currency = 
     <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
       <View style={styles.topRow}>
         <View>
-          <Text style={[styles.label, { color: theme.textSecondary }]}>Total spent</Text>
+          <Text style={[styles.label, { color: theme.textSecondary }]}>Period total</Text>
           <Text style={[styles.amount, { color: theme.text }]}>
             {formatMoney(totalSpent, currency)}
           </Text>
+          {goalTotal > 0 ? (
+            <Text style={[styles.composition, { color: theme.textSecondary }]}>
+              Spending: {formatMoney(purchaseTotal, currency)} · Goals:{' '}
+              {formatMoney(goalTotal, currency)}
+            </Text>
+          ) : null}
         </View>
         {budgetCents != null && (
           <View style={styles.budgetCol}>
@@ -65,8 +81,8 @@ export function BalanceCardWidget({ purchases, members, budgetCents, currency = 
             style={[
               styles.progressFill,
               {
-                width: `${Math.min((totalSpent / budgetCents) * 100, 100)}%`,
-                backgroundColor: totalSpent > budgetCents ? '#FF3B30' : theme.accent,
+                width: `${Math.min((purchaseTotal / budgetCents) * 100, 100)}%`,
+                backgroundColor: purchaseTotal > budgetCents ? '#FF3B30' : theme.accent,
               },
             ]}
           />
@@ -116,6 +132,7 @@ const styles = StyleSheet.create({
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   label: { fontSize: 13, fontWeight: '500', textTransform: 'uppercase', marginBottom: 4 },
   amount: { fontSize: 32, fontWeight: '700', letterSpacing: -1 },
+  composition: { fontSize: 13, fontWeight: '500', marginTop: 6 },
   budgetCol: { alignItems: 'flex-end' },
   budgetAmount: { fontSize: 20, fontWeight: '600' },
   progressTrack: { height: 6, borderRadius: 3, marginTop: 16, overflow: 'hidden' },

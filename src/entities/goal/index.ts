@@ -7,3 +7,7 @@ export { updateGoal } from './libs/updateGoal';
 export { deleteGoal } from './libs/deleteGoal';
 export { addGoalContribution } from './libs/addGoalContribution';
 export { getGoalContributions } from './libs/getGoalContributions';
+export {
+  getGoalContributionsForPeriod,
+  type GoalContributionWithGoal,
+} from './libs/getGoalContributionsForPeriod';

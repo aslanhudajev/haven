@@ -64,9 +64,21 @@ export default function GoalsScreen() {
         {loading ? (
           <ActivityIndicator size="large" color={theme.accent} style={{ marginTop: 48 }} />
         ) : goals.length === 0 ? (
-          <Text style={[styles.empty, { color: theme.textSecondary }]}>
-            No goals yet. Save together for something special.
-          </Text>
+          <View style={styles.emptyBlock}>
+            <View style={[styles.emptyIcon, { backgroundColor: theme.backgroundElement }]}>
+              <Ionicons name="flag-outline" size={36} color={theme.accent} />
+            </View>
+            <Text style={[styles.emptyTitle, { color: theme.text }]}>No goals yet</Text>
+            <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
+              Create one to track savings as a household—trips, buffers, big purchases, and more.
+            </Text>
+            <Pressable
+              style={[styles.emptyCta, { backgroundColor: theme.accent }]}
+              onPress={() => router.push('/(app)/create-goal' as Href)}
+            >
+              <Text style={styles.emptyCtaText}>Start a goal</Text>
+            </Pressable>
+          </View>
         ) : (
           goals.map((g) => {
             const current = g.current_cents ?? 0;
@@ -122,7 +134,35 @@ export default function GoalsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  empty: { fontSize: 16, textAlign: 'center', marginTop: 48, paddingHorizontal: 24 },
+  emptyBlock: {
+    marginTop: 40,
+    paddingHorizontal: Spacing.sm,
+    alignItems: 'center',
+  },
+  emptyIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.lg,
+  },
+  emptyTitle: { fontSize: 22, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
+  emptySubtitle: {
+    fontSize: 16,
+    lineHeight: 24,
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
+    maxWidth: 320,
+  },
+  emptyCta: {
+    minHeight: 48,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyCtaText: { color: '#fff', fontSize: 17, fontWeight: '600' },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

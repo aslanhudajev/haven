@@ -11,14 +11,19 @@ import {
   useColorScheme,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CategoryPickerWidget } from '@widgets/category-picker';
-import { getCategories, type Category } from '@entities/category';
 import { getMembers, useFamilyStore, type FamilyMember } from '@entities/family';
+import { usePeriodStore } from '@entities/period';
 import {
   createRecurringCost,
   deleteRecurringCost,
   getRecurringCosts,
+  insertRecurringPurchasesForPeriod,
   updateRecurringCost,
+  prorateCost,
+  FIXED_COST_TYPES,
+  BILLING_FREQUENCIES,
+  type BillingFrequency,
+  type FixedCostType,
   type RecurringCost,
 } from '@entities/recurring-cost';
 import { getErrorMessage } from '@shared/lib/errors';
@@ -26,6 +31,20 @@ import { formatMoney, fromCents, toCents } from '@shared/lib/format';
 import { Colors, Spacing } from '@shared/lib/theme';
 import { Button, Input } from '@shared/ui';
 import { useAppGateContext } from '@app/providers/AppGateProvider';
+
+function costTypeLabel(type: string): string {
+  return FIXED_COST_TYPES.find((t) => t.value === type)?.label ?? 'Other';
+}
+
+function freqShort(freq: string): string {
+  return BILLING_FREQUENCIES.find((f) => f.value === freq)?.short ?? '/mo';
+}
+
+function periodDaysFromDates(startsAt: string, endsAt: string): number {
+  const s = new Date(startsAt);
+  const e = new Date(endsAt);
+  return Math.round((e.getTime() - s.getTime()) / 86_400_000) + 1;
+}
 
 export default function RecurringCostsScreen() {
   const { family, isOwner } = useAppGateContext();
@@ -36,25 +55,25 @@ export default function RecurringCostsScreen() {
   const insets = useSafeAreaInsets();
 
   const [costs, setCosts] = useState<RecurringCost[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<RecurringCost | null>(null);
   const [desc, setDesc] = useState('');
   const [amountStr, setAmountStr] = useState('');
-  const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [costType, setCostType] = useState<FixedCostType>('other');
+  const [billingFreq, setBillingFreq] = useState<BillingFrequency>('monthly');
   const [defaultPayerUserId, setDefaultPayerUserId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const activePeriod = usePeriodStore((s) => s.activePeriod);
+  const ownerMember = members.find((m) => m.user_id === family?.owner_id) ?? null;
 
   const load = useCallback(async () => {
     if (!family?.id) return;
     setLoading(true);
     try {
-      const [c, cats] = await Promise.all([getRecurringCosts(family.id), getCategories(family.id)]);
+      const c = await getRecurringCosts(family.id);
       setCosts(c.filter((x) => x.is_active));
-      setCategories(cats);
-      const other = cats.find((x) => x.name === 'Other');
-      setCategoryId((prev) => prev ?? other?.id ?? cats[0]?.id ?? null);
     } catch {
       setCosts([]);
     } finally {
@@ -75,9 +94,9 @@ export default function RecurringCostsScreen() {
     setEditing(null);
     setDesc('');
     setAmountStr('');
-    const other = categories.find((x) => x.name === 'Other');
-    setCategoryId(other?.id ?? categories[0]?.id ?? null);
-    setDefaultPayerUserId(null);
+    setCostType('other');
+    setBillingFreq('monthly');
+    setDefaultPayerUserId(ownerMember?.user_id ?? null);
     setModalOpen(true);
   };
 
@@ -85,8 +104,9 @@ export default function RecurringCostsScreen() {
     setEditing(c);
     setDesc(c.description);
     setAmountStr(String(fromCents(c.amount_cents)));
-    setCategoryId(c.category_id);
-    setDefaultPayerUserId(c.default_payer_id);
+    setCostType((c.cost_type as FixedCostType) || 'other');
+    setBillingFreq((c.billing_frequency as BillingFrequency) || 'monthly');
+    setDefaultPayerUserId(c.default_payer_id ?? ownerMember?.user_id ?? null);
     setModalOpen(true);
   };
 
@@ -98,7 +118,7 @@ export default function RecurringCostsScreen() {
   const memberLabel = (m: FamilyMember) => m.profile?.full_name?.trim() || 'Member';
 
   const payerLabel = (userId: string | null) => {
-    if (!userId) return 'Split evenly';
+    if (!userId && ownerMember) return memberLabel(ownerMember);
     const m = members.find((x) => x.user_id === userId);
     return m ? memberLabel(m) : 'Member';
   };
@@ -122,17 +142,33 @@ export default function RecurringCostsScreen() {
         await updateRecurringCost(editing.id, {
           description: d,
           amount_cents: cents,
-          category_id: categoryId,
+          cost_type: costType,
+          billing_frequency: billingFreq,
           default_payer_id: defaultPayerUserId,
         });
       } else {
-        await createRecurringCost({
+        const created = await createRecurringCost({
           familyId: family.id,
           description: d,
           amountCents: cents,
-          categoryId: categoryId,
+          costType,
+          billingFrequency: billingFreq,
           defaultPayerId: defaultPayerUserId,
         });
+        if (activePeriod && family.owner_id) {
+          try {
+            await insertRecurringPurchasesForPeriod({
+              familyId: family.id,
+              periodId: activePeriod.id,
+              periodStartsAt: activePeriod.starts_at,
+              periodEndsAt: activePeriod.ends_at,
+              ownerId: family.owner_id,
+              costs: [created],
+            });
+          } catch {
+            /* idempotent — ignore duplicates */
+          }
+        }
       }
       closeModal();
       await load();
@@ -170,8 +206,6 @@ export default function RecurringCostsScreen() {
     );
   }
 
-  const catMap = new Map(categories.map((c) => [c.id, c]));
-
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView
@@ -195,29 +229,39 @@ export default function RecurringCostsScreen() {
               : 'No active fixed costs.'}
           </Text>
         ) : (
-          costs.map((c) => (
-            <Pressable
-              key={c.id}
-              onPress={() => (isOwner ? openEdit(c) : undefined)}
-              onLongPress={() => (isOwner ? remove(c) : undefined)}
-              style={[styles.row, { backgroundColor: theme.backgroundElement }]}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.rowTitle, { color: theme.text }]}>{c.description}</Text>
-                <Text style={[styles.rowSub, { color: theme.textSecondary }]}>
-                  {formatMoney(c.amount_cents, family.currency)}
-                  {c.category_id && catMap.get(c.category_id)
-                    ? ` · ${catMap.get(c.category_id)!.name}`
-                    : ''}
-                  {' · '}
-                  {payerLabel(c.default_payer_id)}
-                </Text>
-              </View>
-              {isOwner ? (
-                <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
-              ) : null}
-            </Pressable>
-          ))
+          costs.map((c) => {
+            const freq = (c.billing_frequency as BillingFrequency) || 'monthly';
+            const pDays = activePeriod
+              ? periodDaysFromDates(activePeriod.starts_at, activePeriod.ends_at)
+              : 0;
+            const prorated = pDays > 0 ? prorateCost(c.amount_cents, freq, pDays) : null;
+            const showProrated = prorated !== null && prorated !== c.amount_cents;
+
+            return (
+              <Pressable
+                key={c.id}
+                onPress={() => (isOwner ? openEdit(c) : undefined)}
+                onLongPress={() => (isOwner ? remove(c) : undefined)}
+                style={[styles.row, { backgroundColor: theme.backgroundElement }]}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.rowTitle, { color: theme.text }]}>{c.description}</Text>
+                  <Text style={[styles.rowSub, { color: theme.textSecondary }]}>
+                    {formatMoney(c.amount_cents, family.currency)}
+                    {freqShort(freq)}
+                    {showProrated ? ` (~${formatMoney(prorated, family.currency)}/period)` : ''}
+                    {' · '}
+                    {costTypeLabel(c.cost_type)}
+                    {' · '}
+                    {payerLabel(c.default_payer_id)}
+                  </Text>
+                </View>
+                {isOwner ? (
+                  <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+                ) : null}
+              </Pressable>
+            );
+          })
         )}
       </ScrollView>
 
@@ -253,32 +297,74 @@ export default function RecurringCostsScreen() {
               keyboardType="decimal-pad"
               placeholder="0"
             />
-            {categories.length > 0 && categoryId ? (
-              <CategoryPickerWidget
-                categories={categories}
-                selectedId={categoryId}
-                onSelect={setCategoryId}
-              />
-            ) : null}
 
-            <Text style={[styles.payerLabel, { color: theme.textSecondary }]}>Default payer</Text>
+            <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Type</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.typeChips}
+            >
+              {FIXED_COST_TYPES.map((t) => {
+                const active = costType === t.value;
+                return (
+                  <Pressable
+                    key={t.value}
+                    onPress={() => setCostType(t.value)}
+                    style={[
+                      styles.chip,
+                      {
+                        backgroundColor: active ? `${theme.accent}18` : theme.backgroundElement,
+                        borderColor: active ? theme.accent : 'transparent',
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name={t.icon as keyof typeof Ionicons.glyphMap}
+                      size={18}
+                      color={active ? theme.accent : theme.textSecondary}
+                    />
+                    <Text style={[styles.chipText, { color: active ? theme.accent : theme.text }]}>
+                      {t.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
+              Billing frequency
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.typeChips}
+            >
+              {BILLING_FREQUENCIES.map((f) => {
+                const sel = billingFreq === f.value;
+                return (
+                  <Pressable
+                    key={f.value}
+                    onPress={() => setBillingFreq(f.value)}
+                    style={[
+                      styles.freqChip,
+                      {
+                        backgroundColor: sel ? `${theme.accent}18` : theme.backgroundElement,
+                        borderColor: sel ? theme.accent : 'transparent',
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.chipText, { color: sel ? theme.accent : theme.text }]}>
+                      {f.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Default payer</Text>
             <Text style={[styles.payerHint, { color: theme.textSecondary }]}>
               Used when the period is created; anyone can still claim the purchase later.
             </Text>
-            <Pressable
-              style={[
-                styles.payerOption,
-                {
-                  backgroundColor:
-                    defaultPayerUserId === null ? `${theme.accent}18` : theme.backgroundElement,
-                },
-              ]}
-              onPress={() => setDefaultPayerUserId(null)}
-            >
-              <Text style={[styles.payerOptionText, { color: theme.text }]}>
-                Split evenly (owner)
-              </Text>
-            </Pressable>
             {members.map((m) => (
               <Pressable
                 key={m.id}
@@ -350,13 +436,30 @@ const styles = StyleSheet.create({
   },
   modalCancel: { fontSize: 17, fontWeight: '500', width: 72 },
   modalTitle: { fontSize: 17, fontWeight: '600', flex: 1, textAlign: 'center' },
-  payerLabel: {
+  sectionLabel: {
     fontSize: 13,
     fontWeight: '500',
     textTransform: 'uppercase',
     marginTop: 8,
     marginBottom: 4,
     marginLeft: 4,
+  },
+  typeChips: { gap: 8, paddingVertical: 8 },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1.5,
+  },
+  chipText: { fontSize: 15, fontWeight: '500' },
+  freqChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1.5,
   },
   payerHint: { fontSize: 13, marginBottom: 10, marginLeft: 4 },
   payerOption: {

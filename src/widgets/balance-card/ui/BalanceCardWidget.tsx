@@ -24,7 +24,13 @@ export function BalanceCardWidget({
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
 
-  const purchaseTotal = purchases.reduce((sum, p) => sum + p.amount_cents, 0);
+  const discretionaryTotal = purchases
+    .filter((p) => !p.is_recurring)
+    .reduce((sum, p) => sum + p.amount_cents, 0);
+  const recurringTotal = purchases
+    .filter((p) => p.is_recurring)
+    .reduce((sum, p) => sum + p.amount_cents, 0);
+  const purchaseTotal = discretionaryTotal + recurringTotal;
   const goalTotal = Object.values(goalSpendByUser).reduce((s, n) => s + n, 0);
   const totalSpent = purchaseTotal + goalTotal;
 
@@ -58,10 +64,15 @@ export function BalanceCardWidget({
           <Text style={[styles.amount, { color: theme.text }]}>
             {formatMoney(totalSpent, currency)}
           </Text>
-          {goalTotal > 0 ? (
+          {recurringTotal > 0 || goalTotal > 0 ? (
             <Text style={[styles.composition, { color: theme.textSecondary }]}>
-              Spending: {formatMoney(purchaseTotal, currency)} · Goals:{' '}
-              {formatMoney(goalTotal, currency)}
+              {[
+                `Spending: ${formatMoney(discretionaryTotal, currency)}`,
+                recurringTotal > 0 ? `Fixed: ${formatMoney(recurringTotal, currency)}` : null,
+                goalTotal > 0 ? `Goals: ${formatMoney(goalTotal, currency)}` : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
             </Text>
           ) : null}
         </View>
@@ -81,8 +92,8 @@ export function BalanceCardWidget({
             style={[
               styles.progressFill,
               {
-                width: `${Math.min((purchaseTotal / budgetCents) * 100, 100)}%`,
-                backgroundColor: purchaseTotal > budgetCents ? '#FF3B30' : theme.accent,
+                width: `${Math.min((discretionaryTotal / budgetCents) * 100, 100)}%`,
+                backgroundColor: discretionaryTotal > budgetCents ? '#FF3B30' : theme.accent,
               },
             ]}
           />

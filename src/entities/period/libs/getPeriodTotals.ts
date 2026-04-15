@@ -3,6 +3,8 @@ import { supabase } from '@shared/config/supabase';
 export type PeriodTotal = {
   period_id: string;
   purchase_cents: number;
+  recurring_cents: number;
+  discretionary_cents: number;
   goal_cents: number;
   total_cents: number;
 };
@@ -12,7 +14,9 @@ export async function getPeriodTotals(periodIds: string[]): Promise<Map<string, 
 
   const { data, error } = await supabase
     .from('period_totals')
-    .select('period_id, purchase_cents, goal_cents, total_cents')
+    .select(
+      'period_id, purchase_cents, recurring_cents, discretionary_cents, goal_cents, total_cents',
+    )
     .in('period_id', periodIds);
 
   if (error) throw error;
@@ -22,6 +26,8 @@ export async function getPeriodTotals(periodIds: string[]): Promise<Map<string, 
     map.set(row.period_id, {
       period_id: row.period_id,
       purchase_cents: row.purchase_cents,
+      recurring_cents: row.recurring_cents,
+      discretionary_cents: row.discretionary_cents,
       goal_cents: row.goal_cents,
       total_cents: row.total_cents,
     });

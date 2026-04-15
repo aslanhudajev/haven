@@ -1,10 +1,11 @@
 import { supabase } from '@shared/config/supabase';
-import type { RecurringCost } from '../model/types';
+import type { BillingFrequency, FixedCostType, RecurringCost } from '../model/types';
 
 type Patch = Partial<{
   description: string;
   amount_cents: number;
-  category_id: string | null;
+  cost_type: FixedCostType;
+  billing_frequency: BillingFrequency;
   default_payer_id: string | null;
   is_active: boolean;
 }>;

@@ -365,6 +365,8 @@ export type Database = {
           id: string;
           family_id: string;
           category_id: string | null;
+          cost_type: string;
+          billing_frequency: string;
           description: string;
           amount_cents: number;
           default_payer_id: string | null;
@@ -376,6 +378,8 @@ export type Database = {
           id?: string;
           family_id: string;
           category_id?: string | null;
+          cost_type?: string;
+          billing_frequency?: string;
           description: string;
           amount_cents: number;
           default_payer_id?: string | null;
@@ -387,6 +391,8 @@ export type Database = {
           id?: string;
           family_id?: string;
           category_id?: string | null;
+          cost_type?: string;
+          billing_frequency?: string;
           description?: string;
           amount_cents?: number;
           default_payer_id?: string | null;
@@ -403,6 +409,8 @@ export type Database = {
           period_id: string;
           family_id: string;
           purchase_cents: number;
+          recurring_cents: number;
+          discretionary_cents: number;
           goal_cents: number;
           total_cents: number;
         };

@@ -1,11 +1,12 @@
 import { supabase } from '@shared/config/supabase';
-import type { RecurringCost } from '../model/types';
+import type { BillingFrequency, FixedCostType, RecurringCost } from '../model/types';
 
 type Input = {
   familyId: string;
   description: string;
   amountCents: number;
-  categoryId?: string | null;
+  costType: FixedCostType;
+  billingFrequency?: BillingFrequency;
   defaultPayerId?: string | null;
 };
 
@@ -16,7 +17,8 @@ export async function createRecurringCost(input: Input): Promise<RecurringCost> 
       family_id: input.familyId,
       description: input.description.trim(),
       amount_cents: input.amountCents,
-      category_id: input.categoryId ?? null,
+      cost_type: input.costType,
+      billing_frequency: input.billingFrequency ?? 'monthly',
       default_payer_id: input.defaultPayerId ?? null,
       is_active: true,
     })

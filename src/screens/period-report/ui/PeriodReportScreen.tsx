@@ -88,7 +88,13 @@ export default function PeriodReportScreen() {
     };
   }, [periodId, family?.id]);
 
-  const purchaseTotal = purchases.reduce((sum, p) => sum + p.amount_cents, 0);
+  const discretionaryTotal = purchases
+    .filter((p) => !p.is_recurring)
+    .reduce((sum, p) => sum + p.amount_cents, 0);
+  const recurringTotal = purchases
+    .filter((p) => p.is_recurring)
+    .reduce((sum, p) => sum + p.amount_cents, 0);
+  const purchaseTotal = discretionaryTotal + recurringTotal;
   const goalContribTotal = Object.values(goalContribTotalByUser).reduce((s, n) => s + n, 0);
   const totalSpent = purchaseTotal + goalContribTotal;
 
@@ -201,8 +207,13 @@ export default function PeriodReportScreen() {
         </Text>
         <View style={styles.totalBreakdown}>
           <Text style={[styles.totalBreakdownLine, { color: theme.textSecondary }]}>
-            Purchases: {formatMoney(purchaseTotal, currency)}
+            Spending: {formatMoney(discretionaryTotal, currency)}
           </Text>
+          {recurringTotal > 0 ? (
+            <Text style={[styles.totalBreakdownLine, { color: theme.textSecondary }]}>
+              Fixed costs: {formatMoney(recurringTotal, currency)}
+            </Text>
+          ) : null}
           {goalContribTotal > 0 ? (
             <Text style={[styles.totalBreakdownLine, { color: theme.textSecondary }]}>
               Goal contributions: {formatMoney(goalContribTotal, currency)}
@@ -215,8 +226,9 @@ export default function PeriodReportScreen() {
               style={[
                 styles.totalBudgetFill,
                 {
-                  width: `${Math.min((purchaseTotal / family.budget_cents) * 100, 100)}%`,
-                  backgroundColor: purchaseTotal > family.budget_cents ? '#FF3B30' : theme.accent,
+                  width: `${Math.min((discretionaryTotal / family.budget_cents) * 100, 100)}%`,
+                  backgroundColor:
+                    discretionaryTotal > family.budget_cents ? '#FF3B30' : theme.accent,
                 },
               ]}
             />

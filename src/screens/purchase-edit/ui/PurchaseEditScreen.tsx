@@ -326,7 +326,7 @@ export default function PurchaseEditScreen() {
           )}
         />
 
-        {categories.length > 0 && categoryId ? (
+        {categories.length > 0 && categoryId && !isRecurring ? (
           <CategoryPickerWidget
             categories={categories}
             selectedId={categoryId}

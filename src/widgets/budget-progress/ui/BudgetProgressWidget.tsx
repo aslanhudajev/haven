@@ -26,7 +26,7 @@ export function BudgetProgressWidget({ purchases, categories, categoryBudgets, c
   const catMap = new Map(categories.map((c) => [c.id, c]));
   const spendByCat = new Map<string, number>();
   purchases.forEach((p) => {
-    if (!p.category_id) return;
+    if (!p.category_id || p.is_recurring) return;
     spendByCat.set(p.category_id, (spendByCat.get(p.category_id) ?? 0) + p.amount_cents);
   });
 

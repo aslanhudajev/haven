@@ -87,6 +87,8 @@ export async function ensureActivePeriodForDashboard(params: {
         await insertRecurringPurchasesForPeriod({
           familyId,
           periodId: current.id,
+          periodStartsAt: current.starts_at,
+          periodEndsAt: current.ends_at,
           ownerId,
           costs,
         });

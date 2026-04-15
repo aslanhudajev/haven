@@ -27,6 +27,7 @@ export function CategoryBreakdownWidget({
   const spendByCat = new Map<string | 'uncategorized', number>();
 
   purchases.forEach((p) => {
+    if (p.is_recurring) return;
     const key = p.category_id ?? 'uncategorized';
     spendByCat.set(key, (spendByCat.get(key) ?? 0) + p.amount_cents);
   });

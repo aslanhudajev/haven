@@ -4,7 +4,6 @@ import type { Family } from '../model/types';
 
 type CreateFamilyInput = {
   name: string;
-  budget_cents?: number | null;
   currency?: string;
   period_cadence?: Cadence;
   period_anchor_day?: number;
@@ -15,7 +14,6 @@ export async function createFamily(input: CreateFamilyInput, userId: string): Pr
     .from('families')
     .insert({
       name: input.name,
-      budget_cents: input.budget_cents ?? null,
       currency: input.currency ?? 'SEK',
       owner_id: userId,
       period_cadence: input.period_cadence ?? 'monthly',

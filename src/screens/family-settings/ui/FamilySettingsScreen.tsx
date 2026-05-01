@@ -24,7 +24,6 @@ import {
   type Family,
 } from '@entities/family';
 import { getErrorMessage } from '@shared/lib/errors';
-import { toCents, fromCents, formatMoney } from '@shared/lib/format';
 import type { Cadence } from '@shared/lib/period';
 import { inviteDeepLink } from '@shared/lib/storage';
 import { Colors, Spacing, type ThemeColors } from '@shared/lib/theme';
@@ -328,13 +327,6 @@ function MemberReadOnly({
 
       <Card style={styles.section}>
         <ReadOnlyRow label="Family name" value={family.name} theme={theme} />
-        <ReadOnlyRow
-          label="Budget"
-          value={
-            family.budget_cents ? formatMoney(family.budget_cents, family.currency) : 'Not set'
-          }
-          theme={theme}
-        />
         <ReadOnlyRow label="Currency" value={family.currency} theme={theme} />
         <ReadOnlyRow label="Budget cycle" value={cadenceLabel} theme={theme} />
         <ReadOnlyRow label="Cycle starts on" value={anchorLabel} theme={theme} last />
@@ -379,9 +371,6 @@ function OwnerSettings({
 }) {
   const router = useRouter();
   const [name, setName] = useState(family.name);
-  const [budgetStr, setBudgetStr] = useState(
-    family.budget_cents ? String(fromCents(family.budget_cents)) : '',
-  );
   const [currency, setCurrency] = useState(family.currency);
   const [cadence, setCadence] = useState<Cadence>(family.period_cadence);
   const [anchorDay, setAnchorDay] = useState(family.period_anchor_day);
@@ -396,10 +385,8 @@ function OwnerSettings({
   const handleSave = async () => {
     setSaving(true);
     try {
-      const budgetNum = budgetStr ? parseFloat(budgetStr) : null;
       const updated = await updateFamily(family.id, {
         name: name.trim(),
-        budget_cents: budgetNum ? toCents(budgetNum) : null,
         currency,
         period_cadence: cadence,
         period_anchor_day: anchorDay,
@@ -434,54 +421,39 @@ function OwnerSettings({
           placeholder="Family name"
           style={inputStyle}
         />
-        <View style={styles.budgetInputRow}>
-          <View style={{ flex: 1 }}>
-            <Input
-              label="Budget per period"
-              value={budgetStr}
-              onChangeText={(v) => {
-                setBudgetStr(v);
-                markDirty();
-              }}
-              placeholder="e.g. 5000"
-              keyboardType="numeric"
-              style={inputStyle}
-            />
-          </View>
-          <View style={styles.currencyPill}>
-            <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>Currency</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.currencyScroll}
-            >
-              <View style={styles.currencyRow}>
-                {CURRENCIES.map((c) => {
-                  const active = currency === c;
-                  return (
-                    <Pressable
-                      key={c}
-                      style={[
-                        styles.currencyChip,
-                        {
-                          backgroundColor: active ? theme.accent : 'transparent',
-                          borderColor: active ? theme.accent : theme.backgroundSelected,
-                        },
-                      ]}
-                      onPress={() => {
-                        setCurrency(c);
-                        markDirty();
-                      }}
-                    >
-                      <Text style={[styles.currencyText, { color: active ? '#fff' : theme.text }]}>
-                        {c}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </ScrollView>
-          </View>
+        <View style={styles.currencyPill}>
+          <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>Currency</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.currencyScroll}
+          >
+            <View style={styles.currencyRow}>
+              {CURRENCIES.map((c) => {
+                const active = currency === c;
+                return (
+                  <Pressable
+                    key={c}
+                    style={[
+                      styles.currencyChip,
+                      {
+                        backgroundColor: active ? theme.accent : 'transparent',
+                        borderColor: active ? theme.accent : theme.backgroundSelected,
+                      },
+                    ]}
+                    onPress={() => {
+                      setCurrency(c);
+                      markDirty();
+                    }}
+                  >
+                    <Text style={[styles.currencyText, { color: active ? '#fff' : theme.text }]}>
+                      {c}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </ScrollView>
         </View>
       </Card>
 
@@ -711,7 +683,6 @@ const styles = StyleSheet.create({
   },
   scheduleHint: { fontSize: 13, marginBottom: 12 },
 
-  budgetInputRow: {},
   currencyPill: { marginBottom: 4 },
   currencyScroll: { marginTop: 2 },
   currencyRow: { flexDirection: 'row', gap: 8 },

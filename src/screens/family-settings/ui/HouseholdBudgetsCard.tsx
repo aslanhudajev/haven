@@ -53,8 +53,10 @@ export function HouseholdBudgetsCard({ family, theme, refresh }: Props) {
     void load();
   }, [load]);
 
-  const totalBudgetCents = family.budget_cents;
-  const allocatedCents = budgets.reduce((s, b) => s + b.amount_cents, 0);
+  const liveTotal = Object.values(inputs).reduce((sum, v) => {
+    const n = parseFloat(v);
+    return sum + (Number.isNaN(n) || n <= 0 ? 0 : toCents(n));
+  }, 0);
 
   const handleSave = async () => {
     setSaving(true);
@@ -96,30 +98,9 @@ export function HouseholdBudgetsCard({ family, theme, refresh }: Props) {
   return (
     <Card style={styles.section}>
       <Text style={[styles.title, { color: theme.textSecondary }]}>Category budgets</Text>
-      {totalBudgetCents != null ? (
-        <View style={styles.summary}>
-          <Text style={[styles.summaryText, { color: theme.text }]}>
-            Total budget: {formatMoney(totalBudgetCents, family.currency)}
-          </Text>
-          <Text
-            style={[
-              styles.summaryText,
-              {
-                color: allocatedCents > totalBudgetCents ? '#FF3B30' : theme.textSecondary,
-              },
-            ]}
-          >
-            Allocated: {formatMoney(allocatedCents, family.currency)}
-            {allocatedCents > totalBudgetCents
-              ? ` (over by ${formatMoney(allocatedCents - totalBudgetCents, family.currency)})`
-              : ''}
-          </Text>
-        </View>
-      ) : (
-        <Text style={[styles.hint, { color: theme.textSecondary }]}>
-          Set a total budget above to see allocation summary.
-        </Text>
-      )}
+      <Text style={[styles.summaryText, { color: theme.text }]}>
+        Total budget: {formatMoney(liveTotal, family.currency)} per period
+      </Text>
       {categories.map((c) => (
         <View key={c.id} style={styles.row}>
           <Text style={[styles.catName, { color: theme.text }]} numberOfLines={1}>
@@ -152,9 +133,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: 4,
   },
-  summary: { gap: 4, marginBottom: 8 },
-  summaryText: { fontSize: 14, fontWeight: '500' },
-  hint: { fontSize: 14, marginBottom: 8 },
+  summaryText: { fontSize: 14, fontWeight: '500', marginBottom: 8 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 4 },
   catName: { flex: 1, fontSize: 15, fontWeight: '500' },
 });

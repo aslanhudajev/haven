@@ -203,6 +203,8 @@ export default function DashboardScreen() {
     );
   }
 
+  const effectiveBudgetCents = categoryBudgets.reduce((s, b) => s + b.amount_cents, 0);
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView
@@ -228,7 +230,7 @@ export default function DashboardScreen() {
           purchases={purchases}
           goalSpendByUser={goalSpendByUser}
           members={members}
-          budgetCents={family.budget_cents}
+          budgetCents={effectiveBudgetCents > 0 ? effectiveBudgetCents : null}
           currency={family.currency}
         />
 

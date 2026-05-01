@@ -19,7 +19,6 @@ import { supabase } from '@shared/config/supabase';
 import { runSerialized } from '@shared/lib/async';
 import { periodLog } from '@shared/lib/debug';
 import { getErrorMessage } from '@shared/lib/errors';
-import { toCents } from '@shared/lib/format';
 import type { Cadence } from '@shared/lib/period';
 import { Colors, Spacing, type ThemeColors } from '@shared/lib/theme';
 import { Button, Input } from '@shared/ui';
@@ -36,7 +35,6 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 const schema = z.object({
   name: z.string().min(1, 'Name is required').max(50),
-  budget: z.string().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -58,18 +56,16 @@ export default function CreateFamilyScreen() {
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { name: '', budget: '' },
+    defaultValues: { name: '' },
   });
 
-  const onSubmit = async ({ name, budget }: FormData) => {
+  const onSubmit = async ({ name }: FormData) => {
     if (!user) return;
     setLoading(true);
     try {
-      const budgetNum = budget ? parseFloat(budget) : null;
       const family = await createFamily(
         {
           name,
-          budget_cents: budgetNum ? toCents(budgetNum) : null,
           period_cadence: cadence,
           period_anchor_day: anchorDay,
         },
@@ -133,8 +129,6 @@ export default function CreateFamilyScreen() {
   };
 
   const isMonthly = cadence === 'monthly';
-  const budgetCadenceLabel =
-    cadence === 'weekly' ? 'Weekly' : cadence === 'biweekly' ? 'Biweekly' : 'Monthly';
 
   return (
     <View
@@ -168,21 +162,6 @@ export default function CreateFamilyScreen() {
               onBlur={onBlur}
               error={errors.name?.message}
               autoFocus
-            />
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="budget"
-          render={({ field: { onChange, onBlur, value } }) => (
-            <Input
-              label={`${budgetCadenceLabel} budget (optional)`}
-              placeholder="e.g. 5000"
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              keyboardType="numeric"
             />
           )}
         />

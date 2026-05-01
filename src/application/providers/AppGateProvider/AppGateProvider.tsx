@@ -34,6 +34,7 @@ const ROUTE_TO_GROUP: Record<Exclude<AppGateTarget, 'invite-pending'>, string> &
   '/paywall': 'paywall',
   '/(onboarding)/profile': '(onboarding)',
   '/(onboarding)/create-family': '(onboarding)',
+  '/(onboarding)/set-budgets': '(onboarding)',
   '/(onboarding)/sub-expired': '(onboarding)',
   '/(app)/(tabs)': '(app)',
   'invite-pending': 'invite',

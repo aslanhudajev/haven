@@ -109,6 +109,8 @@ export default function PeriodReportScreen() {
 
   const settlements = calculateSettlements(spendByUser);
 
+  const effectiveBudgetCents = reportBudgets.reduce((s, b) => s + b.amount_cents, 0);
+
   const handleResolve = () => {
     Alert.alert('Mark as Settled?', 'This confirms all debts for this period have been paid.', [
       { text: 'Cancel', style: 'cancel' },
@@ -220,15 +222,15 @@ export default function PeriodReportScreen() {
             </Text>
           ) : null}
         </View>
-        {family?.budget_cents != null ? (
+        {effectiveBudgetCents > 0 ? (
           <View style={[styles.totalBudgetTrack, { backgroundColor: theme.backgroundSelected }]}>
             <View
               style={[
                 styles.totalBudgetFill,
                 {
-                  width: `${Math.min((discretionaryTotal / family.budget_cents) * 100, 100)}%`,
+                  width: `${Math.min((discretionaryTotal / effectiveBudgetCents) * 100, 100)}%`,
                   backgroundColor:
-                    discretionaryTotal > family.budget_cents ? '#FF3B30' : theme.accent,
+                    discretionaryTotal > effectiveBudgetCents ? '#FF3B30' : theme.accent,
                 },
               ]}
             />

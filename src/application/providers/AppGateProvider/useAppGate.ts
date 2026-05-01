@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { getCategoryBudgets } from '@entities/category-budget';
 import { getFamily, joinFamily, type Family, type FamilyMember } from '@entities/family';
 import { getProfile, type Profile } from '@entities/profile';
 import {
@@ -37,6 +38,7 @@ export type AppGateTarget =
   | '/(auth)/login'
   | '/(onboarding)/profile'
   | '/(onboarding)/create-family'
+  | '/(onboarding)/set-budgets'
   | '/(onboarding)/sub-expired'
   | '/(app)/(tabs)'
   | 'invite-pending';
@@ -84,6 +86,7 @@ async function resolveUserData(
   family: Family | null;
   membership: FamilyMember | null;
   pendingInvite: string | null;
+  hasCategoryBudgets: boolean;
 }> {
   if (inviteCode) {
     try {
@@ -164,11 +167,18 @@ async function resolveUserData(
     }
   }
 
+  let hasCategoryBudgets = false;
+  if (nextFamily) {
+    const budgets = await getCategoryBudgets(nextFamily.id);
+    hasCategoryBudgets = budgets.length > 0;
+  }
+
   return {
     profile: profileData,
     family: nextFamily,
     membership: memberRow,
     pendingInvite,
+    hasCategoryBudgets,
   };
 }
 
@@ -181,6 +191,7 @@ export function useAppGate(user: SupabaseUser | null): AppGateData {
   const [membership, setMembership] = useState<FamilyMember | null>(null);
   const [pendingInvite, setPendingInvite] = useState<string | null>(null);
   const [householdIntent, setHouseholdIntent] = useState<HouseholdIntent | null>(null);
+  const [hasCategoryBudgets, setHasCategoryBudgets] = useState(false);
 
   const prevUserId = useRef<string | null>(null);
 
@@ -201,6 +212,7 @@ export function useAppGate(user: SupabaseUser | null): AppGateData {
       let nextPending = inviteCode;
       let nextHasSub = hasSubAnon;
       const nextIntent = intentFromStorage;
+      let nextHasCategoryBudgets = false;
 
       if (user) {
         if (prevUserId.current !== user.id) {
@@ -213,10 +225,13 @@ export function useAppGate(user: SupabaseUser | null): AppGateData {
         nextMembership = resolved.membership;
         nextPending = resolved.pendingInvite;
         nextHasSub = SKIP_PAYWALL ? true : await checkSubscription();
+        nextHasCategoryBudgets = resolved.hasCategoryBudgets;
+        setHasCategoryBudgets(resolved.hasCategoryBudgets);
       } else {
         prevUserId.current = null;
         nextPending = await loadPendingInviteCode();
         nextHasSub = hasSubAnon;
+        setHasCategoryBudgets(false);
       }
 
       setWelcomed(w);
@@ -236,6 +251,7 @@ export function useAppGate(user: SupabaseUser | null): AppGateData {
         isOwner: nextMembership?.role === 'owner',
         pendingInvite: nextPending,
         householdIntent: nextIntent,
+        hasCategoryBudgets: nextHasCategoryBudgets,
       });
       gateLog('evaluate done', {
         userId: user?.id ?? null,
@@ -264,6 +280,7 @@ export function useAppGate(user: SupabaseUser | null): AppGateData {
       setProfile(null);
       setFamily(null);
       setMembership(null);
+      setHasCategoryBudgets(false);
       prevUserId.current = null;
     } finally {
       setIsLoading(false);
@@ -285,6 +302,7 @@ export function useAppGate(user: SupabaseUser | null): AppGateData {
     isOwner,
     pendingInvite,
     householdIntent,
+    hasCategoryBudgets,
   });
 
   return {
@@ -316,6 +334,7 @@ function computeTarget(state: {
   isOwner: boolean;
   pendingInvite: string | null;
   householdIntent: HouseholdIntent | null;
+  hasCategoryBudgets: boolean;
 }): AppGateTarget {
   const {
     welcomed,
@@ -326,6 +345,7 @@ function computeTarget(state: {
     isOwner,
     pendingInvite,
     householdIntent,
+    hasCategoryBudgets,
   } = state;
   const subOk = SKIP_PAYWALL || !!hasSubscription;
   const joinPath = isJoinPath(householdIntent, pendingInvite);
@@ -376,6 +396,10 @@ function computeTarget(state: {
 
   if (!family.is_active && !SKIP_PAYWALL) {
     return isOwner ? '/paywall' : '/(onboarding)/sub-expired';
+  }
+
+  if (isOwner && !hasCategoryBudgets) {
+    return '/(onboarding)/set-budgets';
   }
 
   return '/(app)/(tabs)';

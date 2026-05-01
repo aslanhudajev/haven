@@ -14,6 +14,8 @@ export default function AppLayout() {
         headerShadowVisible: false,
         headerStyle: { backgroundColor: theme.background },
         headerTitleAlign: 'center',
+        // RN v7+: hide previous-route title (otherwise iOS shows "(tabs)" next to the chevron).
+        headerBackButtonDisplayMode: 'minimal',
       }}
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
